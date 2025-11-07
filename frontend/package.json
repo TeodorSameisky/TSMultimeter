@@ -1,0 +1,74 @@
+{
+  "name": "tsmultimeter-frontend",
+  "version": "0.1.0",
+  "description": "Frontend for TSMultimeter - TypeScript/React/Electron application",
+  "main": "dist-electron/main.js",
+  "homepage": "./",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "build:electron": "tsc && vite build && electron-builder",
+    "preview": "vite preview",
+    "electron": "wait-on tcp:3000 && cross-env NODE_ENV=development electron .",
+    "electron:dev": "concurrently \"npm run dev\" \"npm run electron\"",
+    "lint": "eslint src --ext .ts,.tsx",
+    "lint:fix": "eslint src --ext .ts,.tsx --fix",
+    "type-check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^1.5.0",
+    "html-to-image": "^1.11.13",
+    "katex": "^0.16.11",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "recharts": "^2.8.0",
+    "styled-components": "^6.1.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.0",
+    "@types/react-dom": "^18.2.0",
+    "@typescript-eslint/eslint-plugin": "^8.0.0",
+    "@typescript-eslint/parser": "^8.0.0",
+    "@vitejs/plugin-react": "^4.0.0",
+    "concurrently": "^8.2.0",
+    "cross-env": "^7.0.3",
+    "electron": "^39.0.0",
+    "electron-builder": "^24.0.0",
+    "eslint": "^8.45.0",
+    "eslint-plugin-react": "^7.33.0",
+    "eslint-plugin-react-hooks": "^4.6.0",
+    "typescript": "^5.0.0",
+    "vite": "^7.1.12",
+    "wait-on": "^7.0.1"
+  },
+  "build": {
+    "appId": "com.tsmultimeter.app",
+    "productName": "TSMultimeter",
+    "directories": {
+      "output": "dist-electron"
+    },
+    "files": [
+      "dist/**/*",
+      "node_modules/**/*",
+      "package.json"
+    ],
+    "mac": {
+      "category": "public.app-category.utilities"
+    },
+    "win": {
+      "target": "nsis"
+    },
+    "linux": {
+      "target": "AppImage"
+    }
+  },
+  "keywords": [
+    "multimeter",
+    "measurement",
+    "electron",
+    "react",
+    "typescript"
+  ],
+  "author": "TSMultimeter Team",
+  "license": "MIT"
+}

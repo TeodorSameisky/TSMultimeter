@@ -1,0 +1,25 @@
+# TSMultimeter Copilot Guide
+- **Architecture**: `backend/src/main.rs` runs a Warp HTTP server on `127.0.0.1:8080`; the React frontend (Vite/Electron) in `frontend/src/App.tsx` talks to it via REST fetches.
+- **Global state**: `backend/src/communication.rs` keeps devices inside `AppState` guarded by `Arc<Mutex<...>>`; every handler clones this state with the `with_state` filter.
+- **REST contract**: key routes are `POST /connect`, `POST /disconnect/{device_id}`, `GET /measurement/{device_id}`, `GET /status`, `GET /ports`; stay consistent with the JSON shapes defined in `useDevice.ts`.
+- **Device strings**: `connect_device` only accepts `Fluke289`, `Fluke287`, or `Mock`; extend the `match` there plus `DeviceType` and `create_device` when adding hardware.
+- **Serial access**: `FlukeDevice` in `backend/src/device/fluke.rs` opens ports with `serialport::new(...)` and parses ACK-prefixed responses; respect the CR-terminated protocol when introducing new commands.
+- **Mock flows**: `backend/src/device/mock.rs` simulates rich data profiles and feeds math channels—use it for UI work that needs varied values without hardware.
+- **Measurement model**: `Measurement`, `Unit`, `MeasurementState`, and `MeasurementAttribute` live in `backend/src/device/mod.rs`; update both backend enums and frontend formatters (`useDevice.ts`, `formatNumber.ts`) if you add new variants.
+- **Error handling**: return backend failures as `Err(String)` so HTTP handlers can wrap them into `{ success: false, error }`; keep `error.rs` as the single source for new error kinds.
+- **Polling loop**: `frontend/src/hooks/useDevice.ts` polls enabled devices every 500 ms and trims history to 5 000 samples per channel; reuse this hook instead of ad-hoc polling.
+- **Unit labels**: `UNIT_DISPLAY_MAP` normalises backend enum names to UI strings; update it whenever you introduce a new `Unit` variant to avoid “Unknown”.
+- **Measurement history**: `MeasurementHistory` in `frontend/src/components/MeasurementHistory` derives chart series via `useMeasurementDerivedState`; wire new history fields through those hooks rather than directly mutating chart state.
+- **Zoom & cursors**: the chart uses custom zoom selection and cursor logic (`MeasurementHistory/hooks.ts`, `utils.ts`); follow existing patterns if you add interactions so state stays in sync.
+- **Math channels**: `useMathChannelHistory.ts` recomputes derived samples after each poll; expressions are parsed via `evaluateMathExpression` which whitelists identifiers—extend the whitelist there before exposing new functions.
+- **Math wizard**: `MathChannelWizardDialog.tsx` expects at least one device channel and builds aliases with `buildDefaultMathAlias`; keep submissions aligned with `MathChannelConfig`.
+- **Channel settings**: `channelSettingsReducer.ts` centralises edits (alias, color, precision, math inputs); dispatch reducer actions instead of mutating configs directly.
+- **Styling**: the UI relies on `styled-components` co-located with components (see `App.tsx`); prefer extending existing styled blocks over global CSS.
+- **ID generation**: use `createId.ts` for new client IDs and let the backend allocate device IDs (`device_0001` style) to prevent collisions.
+- **Dev workflow**: run `cargo run` from `backend/` to start the API, `npm install && npm run dev` from `frontend/` for the UI, or `npm run electron:dev` to pair Vite with the Electron shell.
+- **Linting & types**: gate frontend changes with `npm run lint` and `npm run type-check`; the backend currently has no tests, so prefer targeted integration testing via curl (examples live in `README.md`).
+- **Port discovery**: `get_available_ports` wraps `serialport::available_ports`; mock or stub this call when testing on machines without serial hardware.
+- **Logging**: initialise tracing in `lib.rs::init`; add `tracing::info!`/`warn!` for new backend paths so logs surface in the console output used by developers.
+- **Packaging**: Tauri config (`backend/tauri.conf.json`) is present but bundling is disabled; when enabling desktop builds ensure the HTTP server still binds to loopback or migrate to Tauri commands.
+- **Data export**: CSV exports originate from `MeasurementHistory/utils.ts`; extend those helpers if you introduce new sample metadata that should appear in exports.
+- **Documentation**: keep high-level docs in `README.md` and device specifics under `protocols/`; update both locations when you add protocols or capabilities.

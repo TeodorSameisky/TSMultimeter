@@ -94,6 +94,26 @@ export const SyntaxHelpCard = styled.div`
   color: #c8d9f7;
   font-size: 0.78rem;
   line-height: 1.4;
+  max-height: 200px;
+  overflow-y: auto;
+
+  &::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: rgba(20, 30, 48, 0.5);
+    border-radius: 4px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: rgba(120, 159, 221, 0.4);
+    border-radius: 4px;
+  }
+
+  &::-webkit-scrollbar-thumb:hover {
+    background: rgba(120, 159, 221, 0.6);
+  }
 `;
 
 export const SyntaxHelpTitle = styled.span`

@@ -2,22 +2,25 @@
 
 A PC software application for connecting to multimeters and gathering measurements.
 
+**Version:** 0.1.0
+
 ## Architecture
 
 TSMultimeter consists of two main components:
 
 - **Backend**: Written in Rust, provides HTTP API for device communication
-- **Frontend**: Built with TypeScript/React, runs as a web application
+- **Frontend**: Built with TypeScript/React, packaged as an Electron desktop application
 
 Communication between frontend and backend happens via HTTP REST API.
 
 ## Features
 
 - Support for Fluke 289/287 multimeters
-- Real-time measurement display
-- Measurement history and charting
-- Mock device for development and testing
-- Web-based interface accessible from any modern browser
+- Real-time measurement display and history charting
+- Math channels for derived measurements
+- Developer mode with mock device for testing
+- Electron-based desktop interface
+- Measurement export and snapshot capabilities
 
 ## Supported Devices
 
@@ -59,24 +62,21 @@ This starts the HTTP server on `http://localhost:8080`
 2. **In another terminal, start the frontend:**
 ```bash
 cd frontend
-npm run dev
+npm run electron:dev
 ```
-This starts the development server on `http://localhost:3000`
+This starts the Electron application in development mode.
 
-3. **Open your browser** and navigate to `http://localhost:3000`
+### Alternative: Run as Web Application
 
-The application will automatically connect to the backend API.
-
-### Alternative: Run Frontend in Electron
-
-If you prefer a desktop application experience:
+If you prefer a web-based interface:
 
 ```bash
 cd frontend
-npm run electron
+npm run dev
 ```
+This starts the development server on `http://localhost:3000`. Open your browser and navigate to `http://localhost:3000`.
 
-This requires the backend to be running first.
+The application will automatically connect to the backend API.
 
 ### Testing the API
 
@@ -96,6 +96,17 @@ curl http://localhost:8080/measurement
 curl -X POST http://localhost:8080/disconnect
 ```
 
+## Packaging
+
+To build a standalone executable:
+
+```bash
+cd frontend
+npm run package:standalone
+```
+
+This will build the backend, compile the frontend, and create an installer in `frontend/release/`.
+
 ## Project Structure
 
 ```
@@ -104,30 +115,36 @@ TSMultimeter/
 │   ├── src/
 │   │   ├── main.rs         # HTTP server entry point
 │   │   ├── lib.rs          # Library interface
-│   │   ├── device/         # Device communication modules
-│   │   │   ├── mod.rs      # Device trait and types
-│   │   │   ├── fluke.rs    # Fluke protocol implementation
-│   │   │   └── mock.rs     # Mock device for testing
 │   │   ├── communication.rs # HTTP API handlers
-│   │   └── error.rs        # Error types
+│   │   ├── error.rs        # Error types
+│   │   └── device/         # Device communication modules
+│   │       ├── mod.rs      # Device trait and types
+│   │       ├── fluke.rs    # Fluke protocol implementation
+│   │       └── mock.rs     # Mock device for testing
+│   ├── src-tauri/          # Tauri-specific code
 │   ├── Cargo.toml
-│   └── tauri.conf.json     # Tauri configuration (for future desktop app)
+│   ├── tauri.conf.json     # Tauri configuration
+│   ├── build.rs
+│   └── target/             # Build artifacts
 ├── frontend/                # TypeScript/React frontend
 │   ├── src/
 │   │   ├── main.tsx        # React application entry point
 │   │   ├── App.tsx         # Main application component
 │   │   ├── components/     # React components
-│   │   │   ├── DeviceConnection.tsx
-│   │   │   ├── MeasurementDisplay.tsx
-│   │   │   └── MeasurementHistory.tsx
-│   │   └── hooks/          # Custom React hooks
-│   │       └── useDevice.ts
-│   ├── preload.ts          # Electron preload script
+│   │   │   ├── AppLayout/  # Layout components
+│   │   │   ├── SidePanels/ # Help, About panels
+│   │   │   └── ...         # Other components
+│   │   ├── hooks/          # Custom React hooks
+│   │   ├── state/          # State management
+│   │   ├── types/          # TypeScript types
+│   │   └── utils/          # Utility functions
 │   ├── electron-main.ts    # Electron main process
-│   ├── index.html          # HTML template
+│   ├── preload.ts          # Electron preload script
 │   ├── package.json
 │   ├── tsconfig.json
-│   └── vite.config.ts
+│   ├── vite.config.ts
+│   ├── icon.svg            # Application icon
+│   └── release/            # Build outputs
 ├── protocols/               # Device protocol documentation
 │   ├── README.md
 │   └── fluke/
@@ -151,7 +168,7 @@ See `.github/instructions/copilot_instructions.md.instructions.md` for detailed 
 
 ## License
 
-This project maintains a list of licenses for all used dependencies and components. See the license information in the respective package files.
+This project is licensed under the MIT License. A list of licenses for all used dependencies and components can be found in the About panel of the application.
 
 ## Contributing
 
@@ -159,3 +176,4 @@ This project maintains a list of licenses for all used dependencies and componen
 2. Add tests for new functionality
 3. Update documentation for any changes
 4. Ensure all code is well-documented and maintainable
+5. For feature requests or bugs, open an issue in the [repository](https://github.com/TeodorSameisky/TSMultimeter)

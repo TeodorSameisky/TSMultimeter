@@ -34,6 +34,7 @@ export type ChannelStripProps = {
     field: 'alias' | 'color' | 'unit' | 'expression' | 'precision',
     value: string,
   ) => void;
+  onPopoutChange: (enabled: boolean) => void;
   onSettingsCancel: () => void;
   onSettingsSubmit: (event: FormEvent<HTMLFormElement>) => void;
 };
@@ -249,6 +250,7 @@ const ChannelStripComponent: React.FC<ChannelStripProps> = ({
   onToggleChannel,
   onToggleMathHelp,
   onSettingsFieldChange,
+  onPopoutChange,
   onSettingsCancel,
   onSettingsSubmit,
 }) => (
@@ -332,6 +334,7 @@ const ChannelStripComponent: React.FC<ChannelStripProps> = ({
                   mathSettingsHelpChannelId={mathSettingsHelpChannelId}
                   onToggleMathHelp={onToggleMathHelp}
                   onSettingsFieldChange={onSettingsFieldChange}
+                  onPopoutChange={onPopoutChange}
                   onSettingsCancel={onSettingsCancel}
                   onSettingsSubmit={onSettingsSubmit}
                 />

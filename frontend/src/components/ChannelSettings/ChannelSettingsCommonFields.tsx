@@ -1,17 +1,20 @@
 import { memo } from 'react';
 import type { ChannelSettingsDraft } from '../../types/channel.ts';
 import { ChannelColorInput, ChannelSettingsField, ChannelTextInput } from './styled.ts';
+import { SettingRow, SettingInfo, SettingLabel, SettingDescription, SettingToggle, ToggleThumb } from '../AppLayout/styled.ts';
 
 type CommonField = 'alias' | 'color' | 'precision';
 
 type ChannelSettingsCommonFieldsProps = {
   draft: ChannelSettingsDraft;
   onFieldChange: (field: CommonField, value: string) => void;
+  onPopoutChange: (enabled: boolean) => void;
 };
 
 const ChannelSettingsCommonFieldsComponent: React.FC<ChannelSettingsCommonFieldsProps> = ({
   draft,
   onFieldChange,
+  onPopoutChange,
 }) => (
   <>
     <ChannelSettingsField>
@@ -45,6 +48,19 @@ const ChannelSettingsCommonFieldsComponent: React.FC<ChannelSettingsCommonFields
         placeholder="Auto"
       />
     </ChannelSettingsField>
+    <SettingRow>
+      <SettingInfo>
+        <SettingLabel>Popout window</SettingLabel>
+        <SettingDescription>Show channel value in a floating transparent window</SettingDescription>
+      </SettingInfo>
+      <SettingToggle
+        $active={draft.popoutEnabled ?? false}
+        onClick={() => onPopoutChange(!draft.popoutEnabled)}
+        aria-label="Toggle popout window"
+      >
+        <ToggleThumb $active={draft.popoutEnabled ?? false} />
+      </SettingToggle>
+    </SettingRow>
   </>
 );
 

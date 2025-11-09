@@ -1,4 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron';
+import type { PopoutDescriptor } from './src/types/popout';
 
 // Expose protected methods that allow the renderer process to use
 // the ipcRenderer without exposing the entire object
@@ -13,14 +14,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   resetDevice: () => ipcRenderer.invoke('reset_device'),
 
-  // Measurements
-  getMeasurement: () => ipcRenderer.invoke('get_measurement'),
-
   // Raw commands
   sendRawCommand: (command: string) => ipcRenderer.invoke('send_raw_command', command),
 
   // System
   getAvailablePorts: () => ipcRenderer.invoke('get_available_ports'),
+
+  // Popout windows
+  syncPopouts: (descriptors: PopoutDescriptor[]) => ipcRenderer.invoke('sync-popouts', descriptors),
 
   // Event listeners
   onMeasurementUpdate: (callback: (measurement: any) => void) => {

@@ -7,6 +7,7 @@ export type ChannelBaseConfig = {
   enabled: boolean;
   unit?: string;
   precision?: number;
+  popoutEnabled?: boolean;
 };
 
 export type DeviceChannelConfig = ChannelBaseConfig & {
@@ -39,6 +40,7 @@ export type ChannelSettingsDraft =
       alias: string;
       color: string;
       precision?: number;
+      popoutEnabled?: boolean;
     }
   | {
       kind: 'math';
@@ -49,6 +51,7 @@ export type ChannelSettingsDraft =
       expression: string;
       inputs: MathChannelInput[];
       precision?: number;
+      popoutEnabled?: boolean;
     };
 
 export type ChannelWizardFormState = {

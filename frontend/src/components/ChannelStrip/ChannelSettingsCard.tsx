@@ -27,6 +27,7 @@ type ChannelSettingsCardProps = {
     field: 'alias' | 'color' | 'unit' | 'expression' | 'precision',
     value: string,
   ) => void;
+  onPopoutChange: (enabled: boolean) => void;
   onSettingsCancel: () => void;
   onSettingsSubmit: (event: FormEvent<HTMLFormElement>) => void;
 };
@@ -39,6 +40,7 @@ const ChannelSettingsCardComponent: FC<ChannelSettingsCardProps> = ({
   mathSettingsHelpChannelId,
   onToggleMathHelp,
   onSettingsFieldChange,
+  onPopoutChange,
   onSettingsCancel,
   onSettingsSubmit,
 }) => {
@@ -62,7 +64,7 @@ const ChannelSettingsCardComponent: FC<ChannelSettingsCardProps> = ({
   return (
     <ChannelSettingsPanel onSubmit={onSettingsSubmit}>
       {error && <ChannelSettingsError>{error}</ChannelSettingsError>}
-      <ChannelSettingsCommonFields draft={draft} onFieldChange={onSettingsFieldChange} />
+      <ChannelSettingsCommonFields draft={draft} onFieldChange={onSettingsFieldChange} onPopoutChange={onPopoutChange} />
       {isMathDraft && (
         <MathChannelSettings
           draft={draft}

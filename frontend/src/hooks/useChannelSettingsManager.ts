@@ -25,6 +25,7 @@ export type ChannelSettingsManagerResult = {
   openSettings: (channel: ChannelConfig) => void;
   toggleMathHelp: (channelId: string) => void;
   updateField: (field: ChannelSettingsField, value: string) => void;
+  updatePopout: (enabled: boolean) => void;
   cancel: () => void;
   submit: (event: FormEvent<HTMLFormElement>) => void;
 };
@@ -77,6 +78,10 @@ export const useChannelSettingsManager = (
     dispatch({ type: 'update-common-field', field, value });
   }, []);
 
+  const updatePopout = useCallback((enabled: boolean) => {
+    dispatch({ type: 'update-popout', enabled });
+  }, []);
+
   const submit = useCallback((event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!draft) {
@@ -85,6 +90,7 @@ export const useChannelSettingsManager = (
 
     if (draft.kind === 'device') {
       const nextAlias = draft.alias.trim();
+
       setChannelConfigs((prev) => prev.map((entry) => {
         if (!isDeviceChannel(entry) || entry.id !== draft.id) {
           return entry;
@@ -93,14 +99,20 @@ export const useChannelSettingsManager = (
           ...entry,
           alias: nextAlias.length > 0 ? nextAlias : entry.alias,
           color: draft.color,
-        } as DeviceChannelConfig & { precision?: number };
+        } as DeviceChannelConfig & { precision?: number; popoutEnabled?: boolean };
         if (typeof draft.precision === 'number') {
           next.precision = draft.precision;
         } else {
           delete next.precision;
         }
+        if (draft.popoutEnabled) {
+          next.popoutEnabled = draft.popoutEnabled;
+        } else {
+          delete next.popoutEnabled;
+        }
         return next;
       }));
+
       cancel();
       return;
     }
@@ -161,14 +173,20 @@ export const useChannelSettingsManager = (
           unit,
           expression,
           inputs: cleanedInputs,
-        } as MathChannelConfig & { precision?: number };
+        } as MathChannelConfig & { precision?: number; popoutEnabled?: boolean };
         if (typeof draft.precision === 'number') {
           next.precision = draft.precision;
         } else {
           delete next.precision;
         }
+        if (draft.popoutEnabled) {
+          next.popoutEnabled = draft.popoutEnabled;
+        } else {
+          delete next.popoutEnabled;
+        }
         return next;
       }));
+
       cancel();
     }
   }, [cancel, deviceChannelById, draft, setChannelConfigs]);
@@ -198,6 +216,7 @@ export const useChannelSettingsManager = (
     openSettings,
     toggleMathHelp,
     updateField,
+    updatePopout,
     cancel,
     submit,
   };

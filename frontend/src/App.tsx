@@ -28,6 +28,7 @@ import type {
 } from './types/channel.ts';
 import { isDeviceChannel, isMathChannel } from './types/channel.ts';
 import { DEVICE_TYPE_OPTIONS, type DeviceTypeOption } from './types/devices.ts';
+import type { PopoutDescriptor } from './types/popout.ts';
 
 import { buildDefaultMathAlias } from './utils/mathChannelDefaults.ts';
 import { pickChannelColor } from './utils/channelColors.ts';
@@ -127,6 +128,7 @@ function App() {
 		openSettings: openChannelSettings,
 		toggleMathHelp: toggleMathSettingsHelp,
 		updateField: handleChannelSettingsFieldChange,
+		updatePopout: handlePopoutChange,
 		cancel: cancelChannelSettings,
 		submit: handleChannelSettingsSubmit,
 	} = useChannelSettingsManager({
@@ -192,6 +194,63 @@ function App() {
 			setMathChannelWizardOpen(false);
 		}
 	}, [deviceChannels.length, mathChannelWizardOpen]);
+
+	const popoutDescriptors = useMemo<PopoutDescriptor[]>(() => (
+		channelConfigs.reduce<PopoutDescriptor[]>((acc, channel) => {
+			if (!channel.popoutEnabled) {
+				return acc;
+			}
+
+			if (isDeviceChannel(channel)) {
+				const descriptor: PopoutDescriptor = {
+					channelId: channel.id,
+					channelName: channel.alias,
+					channelType: 'device',
+					color: channel.color,
+					deviceId: channel.deviceId,
+				};
+				if (channel.precision !== undefined) {
+					descriptor.precision = channel.precision;
+				}
+				if (channel.unit) {
+					descriptor.unit = channel.unit;
+				}
+				acc.push(descriptor);
+				return acc;
+			}
+
+			if (isMathChannel(channel)) {
+				const descriptor: PopoutDescriptor = {
+					channelId: channel.id,
+					channelName: channel.alias,
+					channelType: 'math',
+					color: channel.color,
+					unit: channel.unit,
+					expression: channel.expression,
+					inputs: channel.inputs.map(({ channelId, variable }) => ({ channelId, variable })),
+				};
+				if (channel.precision !== undefined) {
+					descriptor.precision = channel.precision;
+				}
+				acc.push(descriptor);
+			}
+
+			return acc;
+		}, [])), [channelConfigs]);
+
+	useEffect(() => {
+		const { electronAPI } = window as typeof window & {
+			electronAPI?: { syncPopouts?: (descriptors: PopoutDescriptor[]) => Promise<void> };
+		};
+		if (!electronAPI?.syncPopouts) {
+			return;
+		}
+		void electronAPI.syncPopouts(popoutDescriptors).catch((error) => {
+			if (process.env.NODE_ENV !== 'production') {
+				console.warn('Failed to sync popout windows', error);
+			}
+		});
+	}, [popoutDescriptors]);
 
 	const openChannelWizard = useCallback(() => {
 		openChannelWizardInternal(channelConfigs.length);
@@ -372,6 +431,7 @@ function App() {
 						onToggleChannel={handleToggleChannel}
 						onToggleMathHelp={toggleMathSettingsHelp}
 						onSettingsFieldChange={handleChannelSettingsFieldChange}
+						onPopoutChange={handlePopoutChange}
 						onSettingsCancel={cancelChannelSettings}
 						onSettingsSubmit={handleChannelSettingsSubmit}
 					/>

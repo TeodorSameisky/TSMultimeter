@@ -8,6 +8,7 @@ const createDeviceDraft = (channel: DeviceChannelConfig): ChannelSettingsDraft =
   alias: channel.alias,
   color: channel.color,
   ...(typeof channel.precision === 'number' ? { precision: channel.precision } : {}),
+  ...(channel.popoutEnabled ? { popoutEnabled: channel.popoutEnabled } : {}),
 });
 
 const createMathDraft = (channel: MathChannelConfig): ChannelSettingsDraft => ({
@@ -19,6 +20,7 @@ const createMathDraft = (channel: MathChannelConfig): ChannelSettingsDraft => ({
   expression: channel.expression,
   inputs: cloneMathInputSelections(channel.inputs),
   ...(typeof channel.precision === 'number' ? { precision: channel.precision } : {}),
+  ...(channel.popoutEnabled ? { popoutEnabled: channel.popoutEnabled } : {}),
 });
 
 export type ChannelSettingsAction =
@@ -26,6 +28,7 @@ export type ChannelSettingsAction =
   | { type: 'toggle-open'; channel: ChannelConfig }
   | { type: 'update-common-field'; field: 'alias' | 'color'; value: string }
   | { type: 'update-precision'; precision?: number }
+  | { type: 'update-popout'; enabled: boolean }
   | { type: 'update-math-field'; field: 'unit' | 'expression'; value: string };
 
 const omitPrecision = (draft: ChannelSettingsDraft): ChannelSettingsDraft => {
@@ -86,6 +89,18 @@ export const channelSettingsReducer = (
         return state;
       }
       return omitPrecision(state);
+    }
+    case 'update-popout': {
+      if (!state) {
+        return state;
+      }
+      if (state.popoutEnabled === action.enabled) {
+        return state;
+      }
+      return {
+        ...state,
+        popoutEnabled: action.enabled,
+      } as ChannelSettingsDraft;
     }
     case 'update-math-field': {
       if (!state || state.kind !== 'math') {

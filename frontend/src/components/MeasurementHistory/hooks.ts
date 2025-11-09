@@ -8,6 +8,7 @@ import {
   createDataSeries,
   deriveUnits,
 } from './utils';
+import { AXIS_TICK_TARGET } from './constants';
 import type {
   ChannelStyleMap,
   ChartDatum,
@@ -16,6 +17,7 @@ import type {
   ZoomOverlayProps,
   ZoomSelectionState,
   AxisEditorState,
+  AxisScaleSetting,
   AxisScaleSettings,
 } from './types';
 
@@ -36,7 +38,7 @@ export type AxisScaleManager = {
   setAxisScales: Dispatch<SetStateAction<AxisScaleSettings>>;
   axisEditor: AxisEditorState | null;
   closeAxisEditor: () => void;
-  handleAxisEditorChange: (field: 'min' | 'max', value: string) => void;
+  handleAxisEditorChange: (field: 'min' | 'max' | 'tickCount', value: string) => void;
   handleAxisEditorApply: () => void;
   handleAxisEditorAuto: () => void;
   toggleAxisLock: (unit: string) => void;
@@ -130,7 +132,7 @@ export const useAxisScaleManager = (axisDomainsByUnit: Map<string, { min: number
     setAxisEditor(null);
   }, []);
 
-  const handleAxisEditorChange = useCallback((field: 'min' | 'max', value: string) => {
+  const handleAxisEditorChange = useCallback((field: 'min' | 'max' | 'tickCount', value: string) => {
     setAxisEditor((prev) => {
       if (!prev) {
         return prev;
@@ -139,6 +141,7 @@ export const useAxisScaleManager = (axisDomainsByUnit: Map<string, { min: number
         unit: prev.unit,
         min: field === 'min' ? value : prev.min,
         max: field === 'max' ? value : prev.max,
+        tickCount: field === 'tickCount' ? value : prev.tickCount,
       } satisfies AxisEditorState;
     });
   }, []);
@@ -148,21 +151,90 @@ export const useAxisScaleManager = (axisDomainsByUnit: Map<string, { min: number
       if (!prev) {
         return prev;
       }
-      const minValue = Number(prev.min);
-      const maxValue = Number(prev.max);
-      if (!Number.isFinite(minValue) || !Number.isFinite(maxValue)) {
-        return { ...prev, error: 'Enter numeric bounds for min/max.' } satisfies AxisEditorState;
+      const minText = prev.min.trim();
+      const maxText = prev.max.trim();
+      const tickText = prev.tickCount.trim();
+
+      const hasMin = minText.length > 0;
+      const hasMax = maxText.length > 0;
+
+      if (hasMin !== hasMax) {
+        return { ...prev, error: 'Provide both minimum and maximum or leave both blank.' } satisfies AxisEditorState;
       }
-      if (minValue >= maxValue) {
-        return { ...prev, error: 'Minimum must be less than maximum.' } satisfies AxisEditorState;
+
+      let minValue: number | undefined;
+      let maxValue: number | undefined;
+
+      if (hasMin && hasMax) {
+        minValue = Number(minText);
+        maxValue = Number(maxText);
+        if (!Number.isFinite(minValue) || !Number.isFinite(maxValue)) {
+          return { ...prev, error: 'Enter numeric bounds for min/max.' } satisfies AxisEditorState;
+        }
+        if (minValue >= maxValue) {
+          return { ...prev, error: 'Minimum must be less than maximum.' } satisfies AxisEditorState;
+        }
       }
-      setAxisScales((current) => ({
-        ...current,
-        [prev.unit]: { min: minValue, max: maxValue, locked: true },
-      }));
+
+      let tickValue: number | undefined;
+      if (tickText.length > 0) {
+        const parsed = Number(tickText);
+        if (!Number.isFinite(parsed)) {
+          return { ...prev, error: 'Enter a numeric tick count.' } satisfies AxisEditorState;
+        }
+        const integer = Math.trunc(parsed);
+        if (Math.abs(integer - parsed) > Number.EPSILON) {
+          return { ...prev, error: 'Tick count must be a whole number.' } satisfies AxisEditorState;
+        }
+        if (integer < 2) {
+          return { ...prev, error: 'Tick count must be at least 2.' } satisfies AxisEditorState;
+        }
+        tickValue = integer;
+      }
+
+      setAxisScales((current) => {
+        const existing = current[prev.unit];
+        const nextEntry: AxisScaleSetting = existing ? { ...existing } : {};
+
+        if (minValue !== undefined && maxValue !== undefined) {
+          nextEntry.min = minValue;
+          nextEntry.max = maxValue;
+          nextEntry.locked = true;
+        } else {
+          delete nextEntry.min;
+          delete nextEntry.max;
+          delete nextEntry.locked;
+        }
+
+        if (tickValue !== undefined) {
+          nextEntry.tickCount = tickValue;
+        } else {
+          delete nextEntry.tickCount;
+        }
+
+        const hasConfig = (
+          typeof nextEntry.min === 'number'
+          || typeof nextEntry.max === 'number'
+          || typeof nextEntry.tickCount === 'number'
+          || nextEntry.locked === true
+        );
+
+        if (!hasConfig) {
+          if (!current[prev.unit]) {
+            return current;
+          }
+          const { [prev.unit]: _removed, ...rest } = current;
+          return rest;
+        }
+
+        return {
+          ...current,
+          [prev.unit]: nextEntry,
+        } satisfies AxisScaleSettings;
+      });
       return null;
     });
-  }, []);
+  }, [setAxisScales]);
 
   const handleAxisEditorAuto = useCallback(() => {
     setAxisEditor((prev) => {
@@ -170,20 +242,32 @@ export const useAxisScaleManager = (axisDomainsByUnit: Map<string, { min: number
         return prev;
       }
       setAxisScales((current) => {
-        const next = { ...current } satisfies AxisScaleSettings;
-        delete next[prev.unit];
+        const existing = current[prev.unit];
+        if (!existing) {
+          return current;
+        }
+        const next: AxisScaleSettings = { ...current };
+        if (typeof existing.tickCount === 'number') {
+          next[prev.unit] = { tickCount: existing.tickCount };
+        } else {
+          delete next[prev.unit];
+        }
         return next;
       });
       return null;
     });
-  }, []);
+  }, [setAxisScales]);
 
   const toggleAxisLock = useCallback((unit: string) => {
     setAxisScales((current) => {
-      const next = { ...current } satisfies AxisScaleSettings;
+      const next: AxisScaleSettings = { ...current };
       const existing = next[unit];
       if (existing?.locked) {
-        delete next[unit];
+        if (typeof existing.tickCount === 'number') {
+          next[unit] = { tickCount: existing.tickCount };
+        } else {
+          delete next[unit];
+        }
         return next;
       }
       const stats = axisDomainsByUnit.get(unit);
@@ -197,7 +281,8 @@ export const useAxisScaleManager = (axisDomainsByUnit: Map<string, { min: number
         min: stats.min - padding,
         max: stats.max + padding,
         locked: true,
-      };
+        tickCount: existing?.tickCount ?? AXIS_TICK_TARGET,
+      } satisfies AxisScaleSetting;
       return next;
     });
   }, [axisDomainsByUnit]);
@@ -207,12 +292,16 @@ export const useAxisScaleManager = (axisDomainsByUnit: Map<string, { min: number
     const domain = axisDomainsByUnit.get(unit);
     const fallbackMin = domain ? domain.min : -1;
     const fallbackMax = domain ? domain.max : 1;
-    const min = current ? current.min : fallbackMin;
-    const max = current ? current.max : fallbackMax;
+    const min = typeof current?.min === 'number' ? current.min : fallbackMin;
+    const max = typeof current?.max === 'number' ? current.max : fallbackMax;
+    const tickCount = current?.tickCount;
     setAxisEditor({
       unit,
-      min: Number.isFinite(min) ? String(min) : '0',
-      max: Number.isFinite(max) ? String(max) : '1',
+      min: Number.isFinite(min) ? String(min) : '',
+      max: Number.isFinite(max) ? String(max) : '',
+      tickCount: typeof tickCount === 'number' && Number.isFinite(tickCount)
+        ? String(tickCount)
+        : '',
     });
   }, [axisDomainsByUnit, axisScales]);
 

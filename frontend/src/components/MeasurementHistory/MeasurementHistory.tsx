@@ -735,7 +735,7 @@ export const MeasurementHistory: React.FC<MeasurementHistoryProps> = ({
           let domainMin: number | null = null;
           let domainMax: number | null = null;
 
-          if (existing) {
+          if (existing && typeof existing.min === 'number' && typeof existing.max === 'number') {
             domainMin = existing.min;
             domainMax = existing.max;
           } else {
@@ -770,7 +770,13 @@ export const MeasurementHistory: React.FC<MeasurementHistoryProps> = ({
             return;
           }
 
-          next[unit] = { min: newMin, max: newMax, locked: true };
+          const tickCount = typeof existing?.tickCount === 'number' ? existing.tickCount : undefined;
+          next[unit] = {
+            min: newMin,
+            max: newMax,
+            locked: true,
+            ...(tickCount !== undefined ? { tickCount } : {}),
+          };
         });
         return next;
       });

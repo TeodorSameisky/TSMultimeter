@@ -1,5 +1,6 @@
 import React from 'react';
 import type { AxisEditorState } from './types';
+import { AXIS_TICK_TARGET } from './constants';
 import {
   AxisScaleBackdrop,
   AxisScaleDialog,
@@ -13,7 +14,7 @@ import {
 
 export interface AxisScaleModalProps {
   editor: AxisEditorState;
-  onChange: (field: 'min' | 'max', value: string) => void;
+  onChange: (field: 'min' | 'max' | 'tickCount', value: string) => void;
   onAuto: () => void;
   onClose: () => void;
   onApply: () => void;
@@ -47,6 +48,18 @@ export const AxisScaleModal: React.FC<AxisScaleModalProps> = ({
           step="any"
           value={editor.max}
           onChange={(event) => onChange('max', event.target.value)}
+        />
+      </AxisScaleField>
+      <AxisScaleField>
+        <span>Tick count</span>
+        <AxisScaleInput
+          type="number"
+          inputMode="numeric"
+          min={2}
+          step="1"
+          value={editor.tickCount}
+          placeholder={String(AXIS_TICK_TARGET)}
+          onChange={(event) => onChange('tickCount', event.target.value)}
         />
       </AxisScaleField>
       {editor.error ? <AxisScaleError>{editor.error}</AxisScaleError> : null}

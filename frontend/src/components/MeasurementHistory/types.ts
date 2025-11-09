@@ -4,14 +4,18 @@ export type AxisEditorState = {
   unit: string;
   min: string;
   max: string;
+  tickCount: string;
   error?: string;
 };
 
-export type AxisScaleSettings = Record<string, {
-  min: number;
-  max: number;
+export type AxisScaleSetting = {
+  min?: number;
+  max?: number;
+  tickCount?: number;
   locked?: boolean;
-}>;
+};
+
+export type AxisScaleSettings = Record<string, AxisScaleSetting>;
 
 export type ZoomSelectionState = {
   xStart: number;

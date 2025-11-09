@@ -28,3 +28,7 @@ Thumbs.db
 
 # Generated artifacts
 *.tsbuildinfo
+
+
+#Ignore vscode AI rules
+.github\instructions\codacy.instructions.md

@@ -39,7 +39,7 @@ export const MIN_Y_RATIO_SPAN = 0.01;
 export const DEFAULT_AXIS_COLOR = '#95a5a6';
 export const DEFAULT_UNIT = 'Unknown';
 
-export const AXIS_TICK_TARGET = 10;
+export const AXIS_TICK_TARGET = 11;
 
 export const SCOPE_TITLE_STORAGE_KEY = 'measurementScopeTitle';
 

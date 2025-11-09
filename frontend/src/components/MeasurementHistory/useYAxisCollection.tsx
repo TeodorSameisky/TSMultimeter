@@ -47,7 +47,7 @@ export const useYAxisCollection = ({
 
     let numericDomain: [number, number] | null = null;
 
-    if (scaleSetting) {
+    if (typeof scaleSetting?.min === 'number' && typeof scaleSetting?.max === 'number') {
       numericDomain = normalizeDomain(scaleSetting.min, scaleSetting.max);
     }
 
@@ -64,8 +64,12 @@ export const useYAxisCollection = ({
       ? numericDomain
       : ['auto', 'auto'];
 
+    const tickTarget = typeof scaleSetting?.tickCount === 'number' && scaleSetting.tickCount >= 2
+      ? scaleSetting.tickCount
+      : AXIS_TICK_TARGET;
+
     const tickValues = numericDomain
-      ? buildEquidistantTicks(numericDomain[0], numericDomain[1], AXIS_TICK_TARGET)
+      ? buildEquidistantTicks(numericDomain[0], numericDomain[1], tickTarget)
       : undefined;
 
   const precision = axisPrecisionByUnit.get(unit);

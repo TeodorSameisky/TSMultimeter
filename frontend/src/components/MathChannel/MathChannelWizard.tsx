@@ -8,19 +8,17 @@ import {
   MathInputRow,
   MathPreviewError,
   MathPreviewSurface,
-  VariableAliasHint,
   VariableBadge,
+  SourceChannelLabel,
 } from './styled.ts';
 import {
   ErrorNote,
   FormGroup,
   GhostButton,
-  InlineGhostButton,
   Input,
   ModalActions,
   ModalTitle,
   PrimaryButton,
-  Select,
   TextArea,
 } from '../common/ModalPrimitives.ts';
 import { MathSyntaxHelp } from './MathSyntaxHelp.tsx';
@@ -28,6 +26,7 @@ import { MathSyntaxHelp } from './MathSyntaxHelp.tsx';
 type MathExpressionPreview = {
   html: string;
   error: string | null;
+  latex: string | null;
 };
 
 type MathChannelWizardProps = {
@@ -35,7 +34,6 @@ type MathChannelWizardProps = {
   mathForm: MathChannelFormState;
   legend: MathVariableLegendItem[];
   preview: MathExpressionPreview;
-  canAddSource: boolean;
   errorMessage: string | null;
   isSyntaxHelpVisible: boolean;
   syntaxHelpPanelId: string;
@@ -43,9 +41,6 @@ type MathChannelWizardProps = {
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
   onClose: () => void;
   onChangeField: (field: 'alias' | 'unit' | 'expression', value: string) => void;
-  onChangeInputChannel: (key: string, channelId: string) => void;
-  onAddInput: () => void;
-  onRemoveInput: (key: string) => void;
 };
 
 const MathChannelWizardComponent: React.FC<MathChannelWizardProps> = ({
@@ -53,7 +48,6 @@ const MathChannelWizardComponent: React.FC<MathChannelWizardProps> = ({
   mathForm,
   legend,
   preview,
-  canAddSource,
   errorMessage,
   isSyntaxHelpVisible,
   syntaxHelpPanelId,
@@ -61,9 +55,6 @@ const MathChannelWizardComponent: React.FC<MathChannelWizardProps> = ({
   onSubmit,
   onClose,
   onChangeField,
-  onChangeInputChannel,
-  onAddInput,
-  onRemoveInput,
 }) => (
   <>
     <ModalTitle>Create a math channel</ModalTitle>
@@ -120,47 +111,19 @@ const MathChannelWizardComponent: React.FC<MathChannelWizardProps> = ({
       <FormGroup>
         Source channels
         <MathInputList>
-          {mathForm.inputs.length === 0 ? (
-            <small style={{ color: '#9fb2d0' }}>Add a source to define input variables.</small>
-          ) : (
-            mathForm.inputs.map((input) => {
-              const legendMeta = legend.find((item) => item.variable === input.variable);
-              const badgeProps: { $color?: string } = legendMeta?.color ? { $color: legendMeta.color } : {};
-              return (
-                <MathInputRow key={input.key}>
-                  <VariableBadge {...badgeProps}>{input.variable}</VariableBadge>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                    <Select
-                      value={input.channelId}
-                      onChange={(event) => onChangeInputChannel(input.key, event.target.value)}
-                      required
-                    >
-                      <option value="" disabled>Select a channel</option>
-                      {deviceChannels.map((channel) => (
-                        <option key={channel.id} value={channel.id}>
-                          {channel.alias}
-                        </option>
-                      ))}
-                    </Select>
-                    <VariableAliasHint>
-                      {legendMeta ? `Mapped to ${legendMeta.alias}` : 'Select a device channel'}
-                    </VariableAliasHint>
-                  </div>
-                  <InlineGhostButton
-                    type="button"
-                    onClick={() => onRemoveInput(input.key)}
-                    disabled={mathForm.inputs.length <= 1}
-                  >
-                    Remove
-                  </InlineGhostButton>
-                </MathInputRow>
-              );
-            })
-          )}
+          {mathForm.inputs.map((input) => {
+            const legendMeta = legend.find((item) => item.variable === input.variable);
+            const fallbackChannel = deviceChannels.find((channel) => channel.id === input.channelId);
+            const aliasLabel = legendMeta?.alias ?? fallbackChannel?.alias ?? 'Channel unavailable';
+            const badgeProps: { $color?: string } = legendMeta?.color ? { $color: legendMeta.color } : {};
+            return (
+              <MathInputRow key={input.key}>
+                <VariableBadge {...badgeProps}>{input.variable}</VariableBadge>
+                <SourceChannelLabel>{aliasLabel}</SourceChannelLabel>
+              </MathInputRow>
+            );
+          })}
         </MathInputList>
-        <InlineGhostButton type="button" onClick={onAddInput} disabled={!canAddSource}>
-          + Add source
-        </InlineGhostButton>
       </FormGroup>
 
       <ModalActions>

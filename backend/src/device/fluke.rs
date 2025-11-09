@@ -7,11 +7,15 @@ use crate::device::{
 };
 use crate::error::{Error, Result};
 use async_trait::async_trait;
-use serialport::{DataBits, FlowControl, Parity, SerialPort, StopBits};
+use serialport::{ClearBuffer, DataBits, FlowControl, Parity, SerialPort, StopBits};
 use std::io::{Read, Write};
 use std::sync::Arc;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use tokio::sync::Mutex;
+
+const ACK_TIMEOUT: Duration = Duration::from_secs(5);
+const PAYLOAD_IDLE_TIMEOUT: Duration = Duration::from_millis(750);
+const READ_BACKOFF: Duration = Duration::from_millis(10);
 
 /// Fluke device implementation
 pub struct FlukeDevice {
@@ -37,42 +41,80 @@ impl FlukeDevice {
             .as_mut()
             .ok_or_else(|| Error::Connection("Not connected".to_string()))?;
 
-        // Send command with CR
-        let command_with_cr = format!("{}\r", command);
-        port.write_all(command_with_cr.as_bytes())?;
+    let command_bytes = format!("{}\r", command).into_bytes();
+    tracing::debug!(command = %command, bytes = ?command_bytes, "Sending command");
+    port.write_all(&command_bytes)?;
+    port.flush()?;
 
         // Small delay for device to process
-        tokio::time::sleep(Duration::from_millis(50)).await;
+    tokio::time::sleep(Duration::from_millis(50)).await;
 
-        // Read response
+        // Read response, capturing both ACK line and optional payload line.
         let mut buffer = [0u8; 1024];
         let mut response = String::new();
-        let mut timeout_count = 0;
+        let mut carriage_returns = 0usize;
+        let mut ack_received = false;
+        let mut last_activity = Instant::now();
 
         loop {
             match port.read(&mut buffer) {
-                Ok(bytes_read) => {
-                    let chunk = String::from_utf8_lossy(&buffer[..bytes_read]);
+                Ok(bytes_read) if bytes_read > 0 => {
+                    let raw_chunk = &buffer[..bytes_read];
+                    let chunk = String::from_utf8_lossy(raw_chunk);
+                    tracing::debug!(command = %command, raw = ?raw_chunk, chunk = %chunk, "Received serial chunk");
+                    carriage_returns += chunk.matches('\r').count();
                     response.push_str(&chunk);
+                    last_activity = Instant::now();
 
-                    // Check if we have a complete response (ends with CR)
-                    if response.contains('\r') {
+                    // Most commands emit an ACK line (ending with CR) and for
+                    // queries an additional payload line (ending with CR). We
+                    // continue reading until we either receive both, or we've
+                    // seen at least one CR and additional reads time out.
+                    if carriage_returns >= 2 {
                         break;
                     }
+                    ack_received = ack_received || carriage_returns >= 1;
                 }
+                Ok(_) => {}
                 Err(ref e) if e.kind() == std::io::ErrorKind::TimedOut => {
-                    timeout_count += 1;
-                    if timeout_count > 10 {
-                        return Err(Error::Timeout);
+                    let elapsed = last_activity.elapsed();
+                    if !ack_received {
+                        if elapsed > ACK_TIMEOUT {
+                            tracing::warn!(command = %command, "Timeout before ACK");
+                            return Err(Error::Timeout);
+                        }
+                    } else if elapsed > PAYLOAD_IDLE_TIMEOUT {
+                        // Treat as ACK-only response; payload likely absent.
+                        break;
                     }
                 }
                 Err(e) => return Err(e.into()),
             }
 
-            tokio::time::sleep(Duration::from_millis(10)).await;
+            tokio::time::sleep(READ_BACKOFF).await;
         }
 
-        Ok(response.trim_end_matches('\r').to_string())
+        // Normalise by stripping carriage returns/newlines so the caller sees
+        // the ACK followed directly by any payload content.
+        if response.is_empty() {
+            return Err(Error::Timeout);
+        }
+
+            let mut lines = response
+                .split('\r')
+                .map(|line| line.trim_end_matches('\n'))
+                .filter(|line| !line.is_empty());
+
+        let ack_line = lines
+            .next()
+            .ok_or_else(|| Error::Parse("Missing ACK".to_string()))?;
+
+        let mut output = String::from(ack_line);
+        for line in lines {
+            output.push_str(line);
+        }
+
+        Ok(output)
     }
 
     /// Parse command acknowledgment
@@ -197,13 +239,25 @@ impl Device for FlukeDevice {
             .as_ref()
             .ok_or_else(|| Error::Config("No port specified".to_string()))?;
 
-        let port = serialport::new(port_name, 115_200)
+        let mut port = serialport::new(port_name, 115_200)
             .data_bits(DataBits::Eight)
             .parity(Parity::None)
             .stop_bits(StopBits::One)
             .flow_control(FlowControl::None)
             .timeout(Duration::from_millis(1000))
             .open()?;
+
+        if let Err(error) = port.write_data_terminal_ready(true) {
+            tracing::warn!(%error, "Failed to assert DTR line");
+        }
+        if let Err(error) = port.write_request_to_send(true) {
+            tracing::warn!(%error, "Failed to assert RTS line");
+        }
+        if let Err(error) = port.clear(ClearBuffer::All) {
+            tracing::warn!(%error, "Failed to clear serial buffers");
+        }
+
+        tokio::time::sleep(Duration::from_millis(150)).await;
 
         *port_guard = Some(port);
 
@@ -235,7 +289,10 @@ impl Device for FlukeDevice {
 
         // Parse identification string
         // Format: FLUKE 289,V1.00,95081087
-        let parts: Vec<&str> = response.split(',').collect();
+        let payload = response
+            .get(1..)
+            .ok_or_else(|| Error::Parse("Identification payload missing".to_string()))?;
+        let parts: Vec<&str> = payload.split(',').collect();
         if parts.len() < 3 {
             return Err(Error::Parse("Invalid identification response".to_string()));
         }
@@ -254,7 +311,10 @@ impl Device for FlukeDevice {
     async fn get_measurement(&mut self) -> Result<Measurement> {
         let response = self.send_command_internal("QM").await?;
         Self::parse_ack(&response)?;
-        Self::parse_measurement(&response[1..]) // Skip ACK character
+        let payload = response
+            .get(1..)
+            .ok_or_else(|| Error::Parse("Measurement payload missing".to_string()))?;
+        Self::parse_measurement(payload)
     }
 
     async fn reset(&mut self) -> Result<()> {

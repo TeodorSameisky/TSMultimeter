@@ -2,12 +2,12 @@ export type MeasurementKind = 'min' | 'max' | 'mean';
 
 export type MeasurementConfig = {
   id: string;
-  deviceId: string;
+  channelId: string;
   kind: MeasurementKind;
 };
 
 export type MeasurementFormState = {
-  deviceId: string;
+  channelId: string;
   kind: MeasurementKind;
 };
 

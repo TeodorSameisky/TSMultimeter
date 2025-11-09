@@ -1,6 +1,5 @@
 import { memo } from 'react';
 import type { FormEvent } from 'react';
-import type { DeviceInfo } from '../../hooks/useDevice.ts';
 import type { MeasurementFormState, MeasurementKind } from '../../types/measurement.ts';
 import { MEASUREMENT_KIND_LABELS } from '../../types/measurement.ts';
 import {
@@ -12,40 +11,57 @@ import {
   Select,
 } from '../common/ModalPrimitives.ts';
 
+type MeasurementChannelOption = {
+  id: string;
+  label: string;
+  group: 'device' | 'math';
+};
+
 type MeasurementWizardProps = {
-  devices: DeviceInfo[];
+  channelOptions: MeasurementChannelOption[];
   form: MeasurementFormState;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
   onClose: () => void;
-  onChangeDevice: (deviceId: string) => void;
+  onChangeChannel: (channelId: string) => void;
   onChangeKind: (kind: MeasurementKind) => void;
 };
 
 const MeasurementWizardComponent: React.FC<MeasurementWizardProps> = ({
-  devices,
+  channelOptions,
   form,
   onSubmit,
   onClose,
-  onChangeDevice,
+  onChangeChannel,
   onChangeKind,
 }) => (
   <>
     <ModalTitle>Add scope measurement</ModalTitle>
     <form onSubmit={onSubmit}>
       <FormGroup>
-        Device source
+        Channel source
         <Select
-          value={form.deviceId}
-          onChange={(event) => onChangeDevice(event.target.value)}
+          value={form.channelId}
+          onChange={(event) => onChangeChannel(event.target.value)}
           required
-          disabled={devices.length === 0}
+          disabled={channelOptions.length === 0}
         >
-          <option value="" disabled>Select a device</option>
-          {devices.map((device) => (
-            <option key={device.id} value={device.id}>
-              {device.model} ({device.deviceType})
-            </option>
-          ))}
+          <option value="" disabled>Select a channel</option>
+          {(['device', 'math'] as const).map((group) => {
+            const groupItems = channelOptions.filter((option) => option.group === group);
+            if (groupItems.length === 0) {
+              return null;
+            }
+            const label = group === 'device' ? 'Device channels' : 'Math channels';
+            return (
+              <optgroup key={group} label={label}>
+                {groupItems.map((option) => (
+                  <option key={option.id} value={option.id}>
+                    {option.label}
+                  </option>
+                ))}
+              </optgroup>
+            );
+          })}
         </Select>
       </FormGroup>
 
@@ -67,7 +83,7 @@ const MeasurementWizardComponent: React.FC<MeasurementWizardProps> = ({
         <GhostButton type="button" onClick={onClose}>
           Cancel
         </GhostButton>
-        <PrimaryButton type="submit" disabled={!form.deviceId}>
+        <PrimaryButton type="submit" disabled={!form.channelId}>
           Add measurement
         </PrimaryButton>
       </ModalActions>

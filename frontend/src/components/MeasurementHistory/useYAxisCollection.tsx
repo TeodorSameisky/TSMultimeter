@@ -95,6 +95,7 @@ export const useYAxisCollection = ({
     orientation="left"
   stroke={AXIS_STROKE_COLOR}
         allowDecimals
+        allowDataOverflow
     tickLine={false}
   axisLine={{ stroke: AXIS_STROKE_COLOR, strokeWidth: 1 }}
         tick={tickRenderer}

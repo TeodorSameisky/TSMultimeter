@@ -2,15 +2,19 @@
   "name": "tsmultimeter-frontend",
   "version": "0.1.0",
   "description": "Frontend for TSMultimeter - TypeScript/React/Electron application",
-  "main": "dist-electron/main.js",
+  "main": "dist-electron/electron-main.js",
   "homepage": "./",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "build:electron": "tsc && vite build && electron-builder",
+    "build:electron:ts": "tsc -p tsconfig.electron.json",
+    "build:electron": "npm run build:electron:ts && vite build && electron-builder",
+  "build:backend": "node ./scripts/build-backend.js",
+  "package:standalone": "npm run build:backend && cross-env ELECTRON_BUILDER_DISABLE_SYMLINKS=true npm run build:electron",
     "preview": "vite preview",
-    "electron": "wait-on tcp:3000 && cross-env NODE_ENV=development electron .",
-    "electron:dev": "concurrently \"npm run dev\" \"npm run electron\"",
+    "watch:electron": "tsc -p tsconfig.electron.json --watch --preserveWatchOutput",
+    "electron": "wait-on tcp:3000 dist-electron/electron-main.js && cross-env NODE_ENV=development electron .",
+    "electron:dev": "concurrently \"npm run dev\" \"npm run watch:electron\" \"npm run electron\"",
     "lint": "eslint src --ext .ts,.tsx",
     "lint:fix": "eslint src --ext .ts,.tsx --fix",
     "type-check": "tsc --noEmit"
@@ -25,6 +29,7 @@
     "styled-components": "^6.1.0"
   },
   "devDependencies": {
+    "@types/node": "^20.19.24",
     "@types/react": "^18.2.0",
     "@types/react-dom": "^18.2.0",
     "@typescript-eslint/eslint-plugin": "^8.0.0",
@@ -45,18 +50,34 @@
     "appId": "com.tsmultimeter.app",
     "productName": "TSMultimeter",
     "directories": {
-      "output": "dist-electron"
+      "output": "release"
     },
     "files": [
       "dist/**/*",
+      "dist-electron/**/*",
       "node_modules/**/*",
       "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "../backend/target/release",
+        "to": "backend",
+        "filter": [
+          "tsmultimeter-backend",
+          "tsmultimeter-backend.exe"
+        ]
+      }
     ],
     "mac": {
       "category": "public.app-category.utilities"
     },
     "win": {
       "target": "nsis"
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "allowElevation": false
     },
     "linux": {
       "target": "AppImage"
@@ -69,6 +90,6 @@
     "react",
     "typescript"
   ],
-  "author": "TSMultimeter Team",
+  "author": "Teodor Sameisky",
   "license": "MIT"
 }

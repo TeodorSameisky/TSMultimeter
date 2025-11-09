@@ -15,8 +15,9 @@ const MathSyntaxHelpComponent: React.FC<MathSyntaxHelpProps> = ({ id }) => (
       </SyntaxHelpItem>
       <SyntaxHelpItem>
         Operators: <SyntaxHelpCode>+</SyntaxHelpCode>, <SyntaxHelpCode>-</SyntaxHelpCode>, <SyntaxHelpCode>*</SyntaxHelpCode>,
-        {' '}<SyntaxHelpCode>/</SyntaxHelpCode>, parentheses, and <SyntaxHelpCode>**</SyntaxHelpCode> for powers. The preview renders
-        {' '}<SyntaxHelpCode>*</SyntaxHelpCode> as <SyntaxHelpCode>\cdot</SyntaxHelpCode>.
+        {' '}<SyntaxHelpCode>/</SyntaxHelpCode>, parentheses, and <SyntaxHelpCode>^</SyntaxHelpCode> for powers (the legacy
+        {' '}<SyntaxHelpCode>**</SyntaxHelpCode> form is still accepted). The preview renders <SyntaxHelpCode>*</SyntaxHelpCode>
+        {' '}as <SyntaxHelpCode>\cdot</SyntaxHelpCode>.
       </SyntaxHelpItem>
       <SyntaxHelpItem>
         Functions: call <SyntaxHelpCode>Math.&lt;fn&gt;</SyntaxHelpCode>, for example <SyntaxHelpCode>Math.sin(a)</SyntaxHelpCode>.
@@ -25,6 +26,15 @@ const MathSyntaxHelpComponent: React.FC<MathSyntaxHelpProps> = ({ id }) => (
       <SyntaxHelpItem>
         Constants: access via <SyntaxHelpCode>Math.&lt;const&gt;</SyntaxHelpCode>, for example <SyntaxHelpCode>Math.PI</SyntaxHelpCode>.
         Available constants: <SyntaxHelpCode>{MATH_CONSTANT_LABEL}</SyntaxHelpCode>.
+      </SyntaxHelpItem>
+      <SyntaxHelpItem>
+        Average two traces: <SyntaxHelpCode>(a + b) / 2</SyntaxHelpCode>
+      </SyntaxHelpItem>
+      <SyntaxHelpItem>
+        Convert degC to degF: <SyntaxHelpCode>(a * 9 / 5) + 32</SyntaxHelpCode>
+      </SyntaxHelpItem>
+      <SyntaxHelpItem>
+        Compute vector magnitude: <SyntaxHelpCode>Math.sqrt(a^2 + b^2)</SyntaxHelpCode>
       </SyntaxHelpItem>
     </SyntaxHelpList>
   </SyntaxHelpCard>

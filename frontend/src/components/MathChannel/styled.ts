@@ -31,6 +31,12 @@ export const VariableBadge = styled.span<{ $color?: string }>`
   font-size: 0.85rem;
 `;
 
+export const SourceChannelLabel = styled.span`
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #eef4ff;
+`;
+
 export const MathPreviewSurface = styled.div`
   margin-top: 0.35rem;
   padding: 0.45rem 0.6rem;
@@ -49,10 +55,6 @@ export const MathPreviewError = styled.div`
   font-weight: 600;
 `;
 
-export const VariableAliasHint = styled.span`
-  font-size: 0.75rem;
-  color: rgba(197, 214, 241, 0.78);
-`;
 
 export const FieldLabelRow = styled.div`
   display: flex;

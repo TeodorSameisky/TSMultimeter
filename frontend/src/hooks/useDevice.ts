@@ -77,13 +77,13 @@ const UNIT_DISPLAY_MAP: Record<string, string> = {
   AmpAc: 'AAC',
   AmpAcPlusDc: 'AAC+DC',
   Amp: 'A',
-  Ohm: 'OHM',
+  Ohm: 'Ω',
   Siemens: 'S',
   Hertz: 'Hz',
   Second: 's',
   Farad: 'F',
-  Celsius: 'CEL',
-  Fahrenheit: 'FAR',
+  Celsius: '°C',
+  Fahrenheit: '°F',
   Percent: '%',
   DecibelM: 'dBm',
   DecibelV: 'dBV',
@@ -220,7 +220,11 @@ export const useDevices = () => {
         ...(measurement.attribute ? { attribute: measurement.attribute } : {}),
       };
 
-      const updatedHistory = [...history, nextSample];
+  const lastSample = history.length > 0 ? history[history.length - 1] : undefined;
+  const unitChanged = lastSample ? lastSample.unit !== nextSample.unit : false;
+      const seedHistory = unitChanged ? [] : history;
+
+      const updatedHistory = [...seedHistory, nextSample];
       const trimmed = updatedHistory.length > HISTORY_LIMIT
         ? updatedHistory.slice(updatedHistory.length - HISTORY_LIMIT)
         : updatedHistory;

@@ -1,35 +1,19 @@
-import {
-  useMemo,
-  useState,
-  useCallback,
-  useEffect,
-  useRef,
-  type ChangeEvent,
-} from 'react';
+import { useMemo, useState, useCallback, useEffect, useRef } from 'react';
 import { ReferenceLine, Label } from 'recharts';
 import type { Formatter } from 'recharts/types/component/DefaultTooltipContent';
-import { formatMeasurementValue } from '../../utils/formatNumber.ts';
+import { formatMeasurementDisplay } from '../../utils/formatNumber.ts';
 import { AxisScaleModal } from './AxisScaleModal';
 import { useYAxisCollection } from './useYAxisCollection';
 import {
-  Actions,
-  Button,
   Card,
-  CardHeader,
-  TitleInput,
   CursorCard,
   CursorHeading,
-  CursorInfo,
   CursorSeriesAlias,
   CursorSeriesLabel,
   CursorSeriesList,
   CursorSeriesRow,
   CursorSeriesSwatch,
   CursorTime,
-  CursorTraceSelect,
-  CursorTraceSelector,
-  CursorTraceControlRow,
-  CursorTraceSwatch,
   ExportLegend,
   ExportLegendRow,
   ExportLegendSwatch,
@@ -56,6 +40,10 @@ import {
 import { useAxisScaleManager, useMeasurementDerivedState } from './hooks';
 import { MeasurementChart } from './MeasurementChart';
 import { AXIS_TICK_TARGET, DEFAULT_AXIS_COLOR, DEFAULT_UNIT, SCOPE_TITLE_STORAGE_KEY } from './constants';
+import { ScopeHeader } from './ScopeHeader';
+import { CursorSummary } from './CursorSummary';
+import { useScopeTitle } from './useScopeTitle';
+import { useScopeImageExport } from './useScopeImageExport';
 
 const CURSOR_DRAG_TOLERANCE_PX = 12;
 const META_PREFIX = 'meta:';
@@ -75,80 +63,17 @@ export const MeasurementHistory: React.FC<MeasurementHistoryProps> = ({
   const [viewLock, setViewLock] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [displayHistory, setDisplayHistory] = useState(history);
-  const [isExportingImage, setIsExportingImage] = useState(false);
-  const [scopeTitle, setScopeTitle] = useState('Measurement Scope');
   const scopeCaptureRef = useRef<HTMLDivElement | null>(null);
-  useEffect(() => {
-    if (typeof window === 'undefined') {
-      return;
-    }
-    const storedTitle = window.localStorage.getItem(SCOPE_TITLE_STORAGE_KEY);
-    if (storedTitle) {
-      setScopeTitle(storedTitle);
-    }
-  }, []);
 
-  const persistScopeTitle = useCallback((value: string) => {
-    if (typeof window === 'undefined') {
-      return;
-    }
-    window.localStorage.setItem(SCOPE_TITLE_STORAGE_KEY, value);
-  }, []);
+  const { title: scopeTitle, update: updateScopeTitle, commit: commitScopeTitle } = useScopeTitle(
+    SCOPE_TITLE_STORAGE_KEY,
+    'Measurement Scope',
+  );
+  const { isExporting: isExportingImage, exportImage } = useScopeImageExport(scopeTitle);
 
-  const handleScopeTitleChange = useCallback((event: ChangeEvent<HTMLInputElement>) => {
-    const nextValue = event.target.value;
-    setScopeTitle(nextValue);
-    persistScopeTitle(nextValue);
-  }, [persistScopeTitle]);
-
-  const handleScopeTitleBlur = useCallback(() => {
-    setScopeTitle((current) => {
-      const trimmed = current.trim();
-      const next = trimmed.length === 0 ? 'Measurement Scope' : trimmed;
-      persistScopeTitle(next);
-      return next;
-    });
-  }, [persistScopeTitle]);
-
-  const handleExportImage = useCallback(async () => {
-    if (isExportingImage) {
-      return;
-    }
-    const target = scopeCaptureRef.current;
-    if (!target) {
-      return;
-    }
-    try {
-      setIsExportingImage(true);
-  await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
-  await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
-  await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
-      const { toPng } = await import('html-to-image');
-      const pixelRatio = window.devicePixelRatio || 1;
-      const dataUrl = await toPng(target, {
-        cacheBust: true,
-        backgroundColor: '#ffffff',
-        pixelRatio: Math.max(pixelRatio, 1.5),
-        filter: (node) => {
-          if (!(node instanceof HTMLElement)) {
-            return true;
-          }
-          return !('exportIgnore' in node.dataset);
-        },
-      });
-      const sanitizedTitle = scopeTitle.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-') || 'measurement-scope';
-      const anchor = document.createElement('a');
-      anchor.href = dataUrl;
-      anchor.download = `${sanitizedTitle}-${Date.now()}.png`;
-      document.body.appendChild(anchor);
-      anchor.click();
-      anchor.remove();
-    } catch (error) {
-      console.error('Failed to export scope image', error);
-    } finally {
-      setIsExportingImage(false);
-    }
-  }, [isExportingImage, scopeTitle]);
+  const handleExportImage = useCallback(() => {
+    void exportImage(scopeCaptureRef.current);
+  }, [exportImage]);
 
   const zoomStartRef = useRef<number | null>(null);
   const zoomStartRatioRef = useRef<number | null>(null);
@@ -284,8 +209,8 @@ export const MeasurementHistory: React.FC<MeasurementHistoryProps> = ({
     setCursorState({});
   }, [cursorTraceKey, setCursorState]);
 
-  const handleCursorTraceChange = useCallback((event: ChangeEvent<HTMLSelectElement>) => {
-    setCursorTraceKey(event.target.value);
+  const handleCursorTraceChange = useCallback((value: string) => {
+    setCursorTraceKey(value);
   }, [setCursorTraceKey]);
 
   const {
@@ -931,11 +856,14 @@ export const MeasurementHistory: React.FC<MeasurementHistoryProps> = ({
   const tooltipFormatter = useCallback<Formatter<number, string>>((value, name, payload) => {
     const key = String(name);
     const entry = (payload as TooltipFormatterPayload | undefined)?.payload;
-  const meta = entry?.[`${META_PREFIX}${key}`] as (SeriesSample & { tooltipLabel?: string }) | undefined;
-    const formattedValue = typeof value === 'number'
-      ? formatMeasurementValue(value, meta?.precision)
-      : value;
-    return [formattedValue, meta?.tooltipLabel ?? key];
+    const meta = entry?.[`${META_PREFIX}${key}`] as (SeriesSample & { tooltipLabel?: string }) | undefined;
+
+    if (typeof value === 'number') {
+      const display = formatMeasurementDisplay(value, meta?.unit, meta?.precision);
+      return [display.combined, meta?.tooltipLabel ?? key];
+    }
+
+    return [value, meta?.tooltipLabel ?? key];
   }, []);
 
   const labelFormatter = useCallback((value: number) => formatRelativeTime(value), []);
@@ -961,6 +889,7 @@ export const MeasurementHistory: React.FC<MeasurementHistoryProps> = ({
         <CursorSeriesList>
           {snapshotSeries.map(({ key, sample }) => {
             const color = seriesColorMap.get(key) ?? DEFAULT_AXIS_COLOR;
+            const display = formatMeasurementDisplay(sample.value, sample.unit, sample.precision);
             return (
               <CursorSeriesRow
                 key={`${label}-${key}`}
@@ -968,8 +897,8 @@ export const MeasurementHistory: React.FC<MeasurementHistoryProps> = ({
               >
                 <CursorSeriesLabel>
                   <CursorSeriesSwatch $color={color} />
-                  <CursorSeriesAlias title={`${formatMeasurementValue(sample.value, sample.precision)} ${sample.unit}`}>
-                    {formatMeasurementValue(sample.value, sample.precision)} {sample.unit}
+                  <CursorSeriesAlias title={display.combined}>
+                    {display.combined}
                   </CursorSeriesAlias>
                 </CursorSeriesLabel>
               </CursorSeriesRow>
@@ -1031,55 +960,24 @@ export const MeasurementHistory: React.FC<MeasurementHistoryProps> = ({
 
   return (
     <Card ref={scopeCaptureRef}>
-      <CardHeader>
-        <TitleInput
-          value={scopeTitle}
-          onChange={handleScopeTitleChange}
-          onBlur={handleScopeTitleBlur}
-          maxLength={80}
-          aria-label="Scope title"
-          placeholder="Measurement Scope"
-        />
-        <Actions data-export-ignore="true">
-          <CursorTraceSelector>
-            <span>Cursor Trace</span>
-            <CursorTraceControlRow>
-              <CursorTraceSwatch $color={currentTraceColor} />
-              <CursorTraceSelect
-                value={cursorTraceKey}
-                onChange={handleCursorTraceChange}
-                $color={currentTraceColor}
-              >
-                <option value="auto">Auto (follow pointer)</option>
-                {cursorTraceOptions.map((option) => (
-                  <option
-                    key={option.key}
-                    value={option.key}
-                    style={{ color: option.color }}
-                  >
-                    {option.label}
-                  </option>
-                ))}
-              </CursorTraceSelect>
-            </CursorTraceControlRow>
-          </CursorTraceSelector>
-          <Button onClick={handlePauseToggle} $variant={isPaused ? 'primary' : 'secondary'}>
-            {isPaused ? 'Resume' : 'Pause'}
-          </Button>
-          <Button onClick={resetView}>Auto Fit</Button>
-          <Button onClick={handleResetCursors}>Clear Cursors</Button>
-          <Button
-            onClick={handleExportImage}
-            disabled={isExportingImage}
-            aria-busy={isExportingImage}
-            type="button"
-          >
-            {isExportingImage ? 'Exporting…' : 'Export Image'}
-          </Button>
-          <Button onClick={handleExportCsv} disabled={chartData.length === 0}>Export CSV</Button>
-          <Button onClick={clearHistory}>Clear All</Button>
-        </Actions>
-      </CardHeader>
+      <ScopeHeader
+        scopeTitle={scopeTitle}
+        onTitleChange={updateScopeTitle}
+        onTitleBlur={commitScopeTitle}
+        cursorTraceKey={cursorTraceKey}
+        cursorTraceOptions={cursorTraceOptions}
+        currentTraceColor={currentTraceColor}
+        onCursorTraceChange={handleCursorTraceChange}
+        isPaused={isPaused}
+        onPauseToggle={handlePauseToggle}
+        onAutoFit={resetView}
+        onResetCursors={handleResetCursors}
+        onExportImage={handleExportImage}
+        isExportingImage={isExportingImage}
+        onExportCsv={handleExportCsv}
+        canExportCsv={chartData.length > 0}
+        onClearHistory={clearHistory}
+      />
 
       <MeasurementChart
         chartData={chartData}
@@ -1112,21 +1010,11 @@ export const MeasurementHistory: React.FC<MeasurementHistoryProps> = ({
         </ExportLegend>
       )}
 
-      {cursorState.primary && (
-        <CursorInfo>
-          {renderCursorSnapshot('Cursor A', cursorState.primary)}
-          {cursorState.secondary && renderCursorSnapshot('Cursor B', cursorState.secondary)}
-          {cursorState.secondary && distanceInfo && cursorState.primary && (
-            <div>
-              <strong>Δ</strong>
-              <div>{distanceInfo.deltaSeconds.toFixed(4)} s</div>
-              <div>
-                {formatMeasurementValue(distanceInfo.deltaValues, distanceInfo.precision)} {cursorState.primary.anchor.unit}
-              </div>
-            </div>
-          )}
-        </CursorInfo>
-      )}
+      <CursorSummary
+        cursorState={cursorState}
+        renderCursorSnapshot={renderCursorSnapshot}
+        distanceInfo={distanceInfo}
+      />
 
       {axisEditor && (
         <AxisScaleModal

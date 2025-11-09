@@ -17,10 +17,10 @@ import {
 import { buildMathVariableLegend } from '../../utils/mathChannelLegend.ts';
 import {
   buildDefaultMathAlias,
-  canAddMathInput,
   createInitialMathFormState,
   createNextMathFormInput,
 } from '../../utils/mathChannelDefaults.ts';
+import { MATH_VARIABLES } from '../../utils/mathExpressions.ts';
 
 const SYNTAX_HELP_ID = 'math-syntax-wizard';
 
@@ -52,11 +52,6 @@ const MathChannelWizardDialogComponent: React.FC<MathChannelWizardDialogProps> =
   );
   const [isSyntaxHelpVisible, setSyntaxHelpVisible] = useState(false);
 
-  const canAddSource = useMemo(
-    () => canAddMathInput(mathForm.inputs, deviceChannels),
-    [deviceChannels, mathForm.inputs],
-  );
-
   const legend = useMemo<MathVariableLegendItem[]>(() => {
     const inputs: MathChannelInput[] = mathForm.inputs.map((input) => ({
       channelId: input.channelId,
@@ -80,21 +75,55 @@ const MathChannelWizardDialogComponent: React.FC<MathChannelWizardDialogProps> =
 
   useEffect(() => {
     setMathForm((prev) => {
-      const validIds = new Set(deviceChannels.map((channel) => channel.id));
+      if (deviceChannels.length === 0) {
+        if (prev.inputs.length === 0) {
+          return prev;
+        }
+        return {
+          ...prev,
+          inputs: [],
+        } satisfies MathChannelFormState;
+      }
+
+      const targetLength = Math.min(deviceChannels.length, MATH_VARIABLES.length);
+      const availableChannels = deviceChannels.slice(0, targetLength);
+
+      let nextInputs = prev.inputs;
       let mutated = false;
-      const filtered = prev.inputs.filter((input) => {
-        if (input.channelId.length === 0 || validIds.has(input.channelId)) {
-          return true;
+
+      if (nextInputs.length > targetLength) {
+        nextInputs = nextInputs.slice(0, targetLength);
+        mutated = true;
+      }
+
+      while (nextInputs.length < targetLength) {
+        const nextInput = createNextMathFormInput(nextInputs, availableChannels);
+        if (!nextInput) {
+          break;
+        }
+        nextInputs = [...nextInputs, nextInput];
+        mutated = true;
+      }
+
+      const reassignedInputs = nextInputs.map((input, index) => {
+        const mappedId = availableChannels[index]?.id ?? '';
+        if (input.channelId === mappedId) {
+          return input;
         }
         mutated = true;
-        return false;
+        return {
+          ...input,
+          channelId: mappedId,
+        } satisfies MathChannelFormState['inputs'][number];
       });
+
       if (!mutated) {
         return prev;
       }
+
       return {
         ...prev,
-        inputs: filtered,
+        inputs: reassignedInputs,
       } satisfies MathChannelFormState;
     });
   }, [deviceChannels]);
@@ -111,40 +140,6 @@ const MathChannelWizardDialogComponent: React.FC<MathChannelWizardDialogProps> =
     setErrorMessage(null);
   }, []);
 
-  const handleChangeInputChannel = useCallback((key: string, channelId: string) => {
-    setMathForm((prev) => ({
-      ...prev,
-      inputs: prev.inputs.map((input) => (
-        input.key === key
-          ? { ...input, channelId }
-          : input
-      )),
-    }));
-    setErrorMessage(null);
-  }, []);
-
-  const handleAddInput = useCallback(() => {
-    setMathForm((prev) => {
-      const nextInput = createNextMathFormInput(prev.inputs, deviceChannels);
-      if (!nextInput) {
-        return prev;
-      }
-      return {
-        ...prev,
-        inputs: [...prev.inputs, nextInput],
-      } satisfies MathChannelFormState;
-    });
-    setErrorMessage(null);
-  }, [deviceChannels]);
-
-  const handleRemoveInput = useCallback((key: string) => {
-    setMathForm((prev) => ({
-      ...prev,
-      inputs: prev.inputs.filter((input) => input.key !== key),
-    }));
-    setErrorMessage(null);
-  }, []);
-
   const handleSubmit = useCallback((event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
@@ -153,17 +148,23 @@ const MathChannelWizardDialogComponent: React.FC<MathChannelWizardDialogProps> =
       return;
     }
 
-  const alias = mathForm.alias.trim() || buildDefaultMathAlias(mathChannelCount);
+    const alias = mathForm.alias.trim() || buildDefaultMathAlias(mathChannelCount);
     const unit = mathForm.unit.trim();
     const expression = mathForm.expression.trim();
-    const selectedInputs = mathForm.inputs
-      .map((input) => ({ channelId: input.channelId.trim(), variable: input.variable }))
-      .filter((input) => input.channelId.length > 0);
+    const normalizedInputs = mathForm.inputs.map((input) => ({ channelId: input.channelId.trim(), variable: input.variable }));
 
-    if (selectedInputs.length === 0) {
-      setErrorMessage('Select at least one source channel.');
+    if (normalizedInputs.length === 0) {
+      setErrorMessage('Add at least one source channel.');
       return;
     }
+
+    const hasMissingChannel = normalizedInputs.some((input) => input.channelId.length === 0);
+    if (hasMissingChannel) {
+      setErrorMessage('One or more mapped channels are unavailable. Remove the variable or reconnect the source device.');
+      return;
+    }
+
+    const selectedInputs = normalizedInputs;
 
     if (!unit) {
       setErrorMessage('Provide an output unit for the math channel.');
@@ -213,7 +214,6 @@ const MathChannelWizardDialogComponent: React.FC<MathChannelWizardDialogProps> =
       mathForm={mathForm}
       legend={legend}
       preview={preview}
-      canAddSource={canAddSource}
       errorMessage={errorMessage}
       isSyntaxHelpVisible={isSyntaxHelpVisible}
       syntaxHelpPanelId={SYNTAX_HELP_ID}
@@ -221,9 +221,6 @@ const MathChannelWizardDialogComponent: React.FC<MathChannelWizardDialogProps> =
       onSubmit={handleSubmit}
       onClose={handleClose}
       onChangeField={handleChangeField}
-      onChangeInputChannel={handleChangeInputChannel}
-      onAddInput={handleAddInput}
-      onRemoveInput={handleRemoveInput}
     />
   );
 };

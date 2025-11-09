@@ -8,7 +8,7 @@ import type {
   DeviceChannelConfig,
 } from '../../types/channel.ts';
 import { isMathChannel } from '../../types/channel.ts';
-import { formatMeasurementValue } from '../../utils/formatNumber.ts';
+import { formatMeasurementDisplay } from '../../utils/formatNumber.ts';
 import { ChannelSettingsCard } from './ChannelSettingsCard.tsx';
 
 export type ChannelReading = {
@@ -260,8 +260,13 @@ const ChannelStripComponent: React.FC<ChannelStripProps> = ({
       const accent = draft?.color ?? channel.color;
       const aliasLabel = draft?.alias ?? channel.alias;
       const effectivePrecision = draft?.precision ?? channel.precision;
-      const displayValue = sample ? formatMeasurementValue(sample.value, effectivePrecision) : '---';
-      const unitLabel = sample?.unit ?? (isMathChannel(channel) ? channel.unit : '');
+      const measurementDisplay = sample
+        ? formatMeasurementDisplay(sample.value, sample.unit, effectivePrecision)
+        : null;
+      const displayValue = measurementDisplay?.valueText ?? '---';
+      const unitLabel = measurementDisplay?.unitText
+        ?? sample?.unit
+        ?? (isMathChannel(channel) ? channel.unit : '');
       const toggleTooltip = isEnabled ? 'Double-click to disable trace' : 'Double-click to enable trace';
       return (
         <ChannelCard

@@ -1,8 +1,10 @@
 # Build outputs
 /backend/target/
 /frontend/dist/
+/frontend/dist-electron/
 /frontend/out/
 /frontend/.vite/
+/frontend/release/
 
 # Dependencies
 /frontend/node_modules/

@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from 'react';
-import type { DeviceInfo, MeasurementSample } from './useDevice';
+import type { DeviceInfo, MeasurementSample } from '../types/deviceData.ts';
 import type { MeasurementConfig, MeasurementKind, MeasurementFormState } from '../types/measurement.ts';
 import type { MeasurementSummary } from '../components/Measurements/MeasurementPanel.tsx';
 import type { ChannelStyleMap } from '../components/MeasurementHistory/types';

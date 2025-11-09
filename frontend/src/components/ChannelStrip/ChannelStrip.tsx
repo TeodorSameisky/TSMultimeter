@@ -1,7 +1,7 @@
 import { memo } from 'react';
 import styled, { css } from 'styled-components';
 import type { FormEvent } from 'react';
-import type { MeasurementSample } from '../../hooks/useDevice.ts';
+import type { MeasurementSample } from '../../types/deviceData.ts';
 import type {
   ChannelConfig,
   ChannelSettingsDraft,

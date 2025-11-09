@@ -1,4 +1,4 @@
-import type { MeasurementSample } from '../../hooks/useDevice';
+import type { MeasurementSample } from '../../types/deviceData.ts';
 
 export type AxisEditorState = {
   unit: string;
@@ -109,11 +109,24 @@ export type PointerRatios = {
   y: number;
 };
 
+export type CursorDistanceSeries = {
+  key: string;
+  label: string;
+  unit: string;
+  delta: number;
+  precision?: number;
+};
+
 export type CursorDistanceInfo = {
   deltaTime: number;
   deltaSeconds: number;
-  deltaValues: number;
+  /**
+   * Maintained for backwards compatibility with callers relying on the anchor delta.
+   * Prefer the structured `series` entries for UI rendering.
+   */
+  deltaValues?: number;
   precision?: number;
+  series: CursorDistanceSeries[];
 };
 
 export type ChartDatum = {

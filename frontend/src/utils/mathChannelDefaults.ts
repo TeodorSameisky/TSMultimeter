@@ -1,5 +1,5 @@
 import type { DeviceChannelConfig, MathChannelFormInputState, MathChannelFormState, MathChannelInput } from '../types/channel.ts';
-import type { MeasurementSample } from '../hooks/useDevice.ts';
+import type { MeasurementSample } from '../types/deviceData.ts';
 import { MATH_VARIABLES } from './mathExpressions.ts';
 import { createId } from './createId.ts';
 

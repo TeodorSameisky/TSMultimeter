@@ -2,8 +2,8 @@ import { useMemo } from 'react';
 import { YAxis, Label } from 'recharts';
 import { formatMeasurementValue } from '../../utils/formatNumber.ts';
 import { AxisTick } from './AxisTick';
-import { AXIS_TICK_TARGET, AXIS_STROKE_COLOR } from './constants';
-import { buildEquidistantTicks } from './utils';
+import { AXIS_STROKE_COLOR } from './constants';
+import { resolveAxisDomain, resolveTickTarget, resolveTickValues } from './axisUtils.ts';
 import type { AxisScaleSettings, AxisTickBaseProps } from './types';
 
 type UseYAxisCollectionOptions = {
@@ -27,52 +27,16 @@ export const useYAxisCollection = ({
 }: UseYAxisCollectionOptions) => useMemo(() => (
   units.map(([unit]) => {
     const scaleSetting = axisScales[unit];
-    const normalizeDomain = (min: number, max: number): [number, number] | null => {
-      if (!Number.isFinite(min) || !Number.isFinite(max)) {
-        return null;
-      }
-      const low = Math.min(min, max);
-      const high = Math.max(min, max);
-      if (!Number.isFinite(low) || !Number.isFinite(high)) {
-        return null;
-      }
-      if (Math.abs(high - low) < Number.EPSILON) {
-        const padding = Math.max(Math.abs(low) * 0.1, 1);
-        return [low - padding, high + padding];
-      }
-      return [low, high];
-    };
-
     const stats = axisDomainsByUnit.get(unit);
 
-    let numericDomain: [number, number] | null = null;
+    const numericDomain = resolveAxisDomain(scaleSetting, stats);
 
-    if (typeof scaleSetting?.min === 'number' && typeof scaleSetting?.max === 'number') {
-      numericDomain = normalizeDomain(scaleSetting.min, scaleSetting.max);
-    }
+    const domain: [number | 'auto', number | 'auto'] = numericDomain ?? ['auto', 'auto'];
 
-    if (!numericDomain && stats) {
-      const padding = stats.min === stats.max
-        ? (Math.abs(stats.min) * 0.1 || 1)
-        : ((stats.max - stats.min) * 0.1);
-      const paddedMin = stats.min - padding;
-      const paddedMax = stats.max + padding;
-      numericDomain = normalizeDomain(paddedMin, paddedMax);
-    }
+    const tickTarget = resolveTickTarget(scaleSetting?.tickCount);
+    const tickValues = resolveTickValues(numericDomain, tickTarget);
 
-    const domain: [number | 'auto', number | 'auto'] = numericDomain
-      ? numericDomain
-      : ['auto', 'auto'];
-
-    const tickTarget = typeof scaleSetting?.tickCount === 'number' && scaleSetting.tickCount >= 2
-      ? scaleSetting.tickCount
-      : AXIS_TICK_TARGET;
-
-    const tickValues = numericDomain
-      ? buildEquidistantTicks(numericDomain[0], numericDomain[1], tickTarget)
-      : undefined;
-
-  const precision = axisPrecisionByUnit.get(unit);
+    const precision = axisPrecisionByUnit.get(unit);
     const ticksProp = tickValues && tickValues.length > 0
       ? { ticks: tickValues as Array<string | number> }
       : null;
@@ -95,15 +59,15 @@ export const useYAxisCollection = ({
     return (
       <YAxis
         key={unit}
-    yAxisId={unit}
-    orientation="left"
-  stroke={AXIS_STROKE_COLOR}
+        yAxisId={unit}
+        orientation="left"
+        stroke={AXIS_STROKE_COLOR}
         allowDecimals
         allowDataOverflow
-    tickLine={false}
-  axisLine={{ stroke: AXIS_STROKE_COLOR, strokeWidth: 1 }}
+        tickLine={false}
+        axisLine={{ stroke: AXIS_STROKE_COLOR, strokeWidth: 1 }}
         tick={tickRenderer}
-  width={72}
+        width={72}
         padding={{ top: 28, bottom: 0 }}
         domain={domain}
         {...(ticksProp ?? undefined)}
@@ -122,7 +86,7 @@ export const useYAxisCollection = ({
             const labelY = y + 10;
             const isLocked = Boolean(scaleSetting?.locked);
             const symbol = isLocked ? '🔒' : '🔓';
-              const textContent = isExporting ? unit : `${symbol} ${unit}`;
+            const textContent = isExporting ? unit : `${symbol} ${unit}`;
             return (
               <text
                 x={labelX}
@@ -137,7 +101,7 @@ export const useYAxisCollection = ({
                 }}
               >
                 <title>{isLocked ? 'Click to unlock axis' : 'Click to lock axis'}</title>
-                  {textContent}
+                {textContent}
               </text>
             );
           }}

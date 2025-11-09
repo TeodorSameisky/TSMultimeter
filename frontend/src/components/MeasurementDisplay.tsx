@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import styled from 'styled-components';
-import type { MeasurementResponse } from '../hooks/useDevice';
+import type { MeasurementResponse } from '../types/deviceData.ts';
 
 const Card = styled.div`
   background: white;

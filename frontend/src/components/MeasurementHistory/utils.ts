@@ -1,10 +1,11 @@
 import { format } from 'date-fns';
-import type { MeasurementSample } from '../../hooks/useDevice';
+import type { MeasurementSample } from '../../types/deviceData.ts';
 import { COLORS, DEFAULT_AXIS_COLOR, DEFAULT_UNIT, MIN_X_ZOOM_SPAN, MIN_Y_RATIO_SPAN, UNIT_ORDER } from './constants';
 import type {
   ChannelStyleMap,
   ChartPointerEvent,
   CursorDistanceInfo,
+  CursorDistanceSeries,
   CursorState,
   ChartDatum,
   MeasurementSeries,
@@ -184,6 +185,48 @@ export const buildChartData = (
   ));
 };
 
+export const findClosestRecord = (chartData: ChartDatum[], timestamp: number): ChartDatum | undefined => {
+  if (!Number.isFinite(timestamp) || chartData.length === 0) {
+    return undefined;
+  }
+
+  let low = 0;
+  let high = chartData.length - 1;
+
+  while (low <= high) {
+    const mid = Math.floor((low + high) / 2);
+    const record = chartData[mid];
+    if (!record) {
+      break;
+    }
+    const midValue = record.relativeTimestamp;
+    if (midValue === timestamp) {
+      return record;
+    }
+    if (midValue < timestamp) {
+      low = mid + 1;
+    } else {
+      high = mid - 1;
+    }
+  }
+
+  const lowerIndex = Math.max(0, Math.min(chartData.length - 1, high));
+  const upperIndex = Math.max(0, Math.min(chartData.length - 1, low));
+  const lowerRecord = chartData[lowerIndex];
+  const upperRecord = chartData[upperIndex];
+
+  if (!lowerRecord) {
+    return upperRecord;
+  }
+  if (!upperRecord) {
+    return lowerRecord;
+  }
+
+  const lowerDelta = Math.abs(lowerRecord.relativeTimestamp - timestamp);
+  const upperDelta = Math.abs(upperRecord.relativeTimestamp - timestamp);
+  return lowerDelta <= upperDelta ? lowerRecord : upperRecord;
+};
+
 export const buildAxisDomains = (
   series: MeasurementSeries[],
   channelStyles?: ChannelStyleMap,
@@ -252,27 +295,77 @@ export const buildAxisPrecision = (series: MeasurementSeries[]) => {
 };
 
 export const computeCursorDistance = (state: CursorState): CursorDistanceInfo | null => {
-  const primary = state.primary?.anchor;
-  const secondary = state.secondary?.anchor;
-  if (!primary || !secondary) {
+  const primarySnapshot = state.primary;
+  const secondarySnapshot = state.secondary;
+  if (!primarySnapshot || !secondarySnapshot) {
     return null;
   }
-  if (primary.unit !== secondary.unit) {
-    return null;
-  }
-  const deltaTime = Math.abs(primary.timestamp - secondary.timestamp);
+
+  const primaryAnchor = primarySnapshot.anchor;
+  const secondaryAnchor = secondarySnapshot.anchor;
+  const deltaTime = Math.abs(primaryAnchor.timestamp - secondaryAnchor.timestamp);
   const deltaSeconds = deltaTime / 1000;
-  const deltaValues = primary.value - secondary.value;
-  const precision = primary.precision ?? secondary.precision;
-  const result: CursorDistanceInfo = {
+
+  const secondaryMap = new Map<string, SeriesSample>();
+  secondarySnapshot.series.forEach((entry) => {
+    secondaryMap.set(entry.key, entry.sample);
+  });
+
+  const series: CursorDistanceSeries[] = [];
+
+  primarySnapshot.series.forEach(({ key, sample }) => {
+    const secondarySample = secondaryMap.get(key);
+    if (!secondarySample) {
+      return;
+    }
+    const unitA = sample.unit ?? DEFAULT_UNIT;
+    const unitB = secondarySample.unit ?? DEFAULT_UNIT;
+    if (unitA !== unitB) {
+      return;
+    }
+    if (!Number.isFinite(sample.value) || !Number.isFinite(secondarySample.value)) {
+      return;
+    }
+
+    const precision = sample.precision ?? secondarySample.precision;
+    series.push({
+      key,
+      label: sample.deviceLabel ?? sample.deviceId ?? key,
+      unit: unitA,
+      delta: sample.value - secondarySample.value,
+      ...(precision !== undefined ? { precision } : {}),
+    });
+  });
+
+  if (series.length === 0) {
+    return {
+      deltaTime,
+      deltaSeconds,
+      series: [],
+    } satisfies CursorDistanceInfo;
+  }
+
+  const anchorUnitA = primaryAnchor.unit ?? DEFAULT_UNIT;
+  const anchorUnitB = secondaryAnchor.unit ?? DEFAULT_UNIT;
+  let deltaValues: number | undefined;
+  let precision: number | undefined;
+
+  if (
+    anchorUnitA === anchorUnitB
+    && Number.isFinite(primaryAnchor.value)
+    && Number.isFinite(secondaryAnchor.value)
+  ) {
+    deltaValues = primaryAnchor.value - secondaryAnchor.value;
+    precision = primaryAnchor.precision ?? secondaryAnchor.precision;
+  }
+
+  return {
     deltaTime,
     deltaSeconds,
-    deltaValues,
-  };
-  if (precision !== undefined) {
-    result.precision = precision;
-  }
-  return result;
+    ...(deltaValues !== undefined ? { deltaValues } : {}),
+    ...(precision !== undefined ? { precision } : {}),
+    series,
+  } satisfies CursorDistanceInfo;
 };
 
 const encodeCsvCell = (cell: string) => {

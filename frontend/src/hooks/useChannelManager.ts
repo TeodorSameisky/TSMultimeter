@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import type { DeviceInfo } from './useDevice';
+import type { DeviceInfo } from '../types/deviceData.ts';
 import type {
   ChannelConfig,
   DeviceChannelConfig,

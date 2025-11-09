@@ -7,7 +7,7 @@ import type {
   MathVariableLegendItem,
   MathChannelSubmission,
 } from '../../types/channel.ts';
-import type { MeasurementSample } from '../../hooks/useDevice.ts';
+import type { MeasurementSample } from '../../types/deviceData.ts';
 import { MathChannelWizard } from '../MathChannel/MathChannelWizard.tsx';
 import {
   createExpressionPreview,

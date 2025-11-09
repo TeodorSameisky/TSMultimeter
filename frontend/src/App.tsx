@@ -13,7 +13,7 @@ import { AboutPanel } from './components/SidePanels/AboutPanel.tsx';
 import { HelpPanel } from './components/SidePanels/HelpPanel.tsx';
 
 import { useDevices } from './hooks/useDevice.ts';
-import type { MeasurementSample } from './hooks/useDevice.ts';
+import type { MeasurementSample } from './types/deviceData.ts';
 import { useChannelManager } from './hooks/useChannelManager.ts';
 import { useMathChannelHistory } from './hooks/useMathChannelHistory.ts';
 import { useDeveloperMode } from './hooks/useDeveloperMode.ts';

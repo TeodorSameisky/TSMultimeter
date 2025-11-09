@@ -1,71 +1,14 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import type { DeviceInfo, MeasurementResponse, MeasurementSample } from '../types/deviceData.ts';
+import {
+  connectToDevice,
+  disconnectFromDevice,
+  getAvailablePorts,
+  getDeviceMeasurement,
+  getDeviceStatus,
+} from '../api/deviceClient.ts';
 
-export interface DeviceInfo {
-  id: string;
-  connected: boolean;
-  deviceType: string;
-  model: string;
-  serialNumber: string;
-  softwareVersion: string;
-}
-
-export interface MeasurementResponse {
-  value: number;
-  unit: string;
-  state?: string;
-  attribute?: string;
-  timestamp?: string;
-}
-
-export interface MeasurementSample {
-  deviceId: string;
-  deviceType: string;
-  deviceLabel: string;
-  value: number;
-  unit: string;
-  state?: string;
-  attribute?: string;
-  timestamp: number;
-}
-
-type RawDeviceInfo = {
-  id?: string | number;
-  connected?: boolean;
-  device_type?: string;
-  info?: {
-    model?: string;
-    serial_number?: string;
-    software_version?: string;
-  } | null;
-};
-
-type DevicesResponse = {
-  success: boolean;
-  devices?: RawDeviceInfo[] | null;
-};
-
-type PortsResponse = {
-  success: boolean;
-  ports?: string[] | null;
-};
-
-type ConnectResponse = {
-  success: boolean;
-  device?: RawDeviceInfo | null;
-  error?: string;
-};
-
-type DisconnectResponse = {
-  success: boolean;
-  message?: string;
-  error?: string;
-};
-
-type MeasurementApiResponse = {
-  success: boolean;
-  data: MeasurementResponse;
-  error?: string;
-};
+export type { DeviceInfo, MeasurementResponse, MeasurementSample } from '../types/deviceData.ts';
 
 const UNIT_DISPLAY_MAP: Record<string, string> = {
   None: 'Unknown',
@@ -104,9 +47,53 @@ const normaliseUnit = (unit?: string | null): string => {
 
 type MeasurementHistory = Record<string, MeasurementSample[]>;
 
-const API_BASE = 'http://127.0.0.1:8080';
 const HISTORY_LIMIT = 5000;
 const POLL_INTERVAL_MS = 500;
+
+const createMeasurementSample = (
+  deviceId: string,
+  measurement: MeasurementResponse,
+  deviceMeta?: DeviceInfo,
+): MeasurementSample => {
+  const timestampMs = measurement.timestamp ? Date.parse(measurement.timestamp) : Date.now();
+  const sample: MeasurementSample = {
+    deviceId,
+    deviceType: deviceMeta?.deviceType ?? 'Unknown',
+    deviceLabel: deviceMeta ? `${deviceMeta.model} (${deviceMeta.deviceType})` : deviceId,
+    value: Number(measurement.value ?? 0),
+    unit: normaliseUnit(measurement.unit),
+    timestamp: Number.isNaN(timestampMs) ? Date.now() : timestampMs,
+  };
+
+  if (measurement.state) {
+    sample.state = measurement.state;
+  }
+  if (measurement.attribute) {
+    sample.attribute = measurement.attribute;
+  }
+
+  return sample;
+};
+
+const appendSampleToHistory = (
+  historyMap: MeasurementHistory,
+  sample: MeasurementSample,
+): MeasurementHistory => {
+  const existingHistory = historyMap[sample.deviceId] ?? [];
+  const lastSample = existingHistory.length > 0 ? existingHistory[existingHistory.length - 1] : undefined;
+  const hasUnitChanged = lastSample ? lastSample.unit !== sample.unit : false;
+  // Reset history when the unit changes to avoid mixing incompatible samples.
+  const seedHistory = hasUnitChanged ? [] : existingHistory;
+  const updatedHistory = [...seedHistory, sample];
+  const trimmedHistory = updatedHistory.length > HISTORY_LIMIT
+    ? updatedHistory.slice(updatedHistory.length - HISTORY_LIMIT)
+    : updatedHistory;
+
+  return {
+    ...historyMap,
+    [sample.deviceId]: trimmedHistory,
+  };
+};
 
 export const useDevices = () => {
   const [devices, setDevices] = useState<DeviceInfo[]>([]);
@@ -116,23 +103,10 @@ export const useDevices = () => {
   const pollingHandles = useRef<Record<string, ReturnType<typeof setInterval>>>({});
   const inFlightRequests = useRef(new Set<string>());
 
-  const normaliseDevice = (device: RawDeviceInfo): DeviceInfo => ({
-    id: String(device.id ?? 'unknown-device'),
-    connected: Boolean(device.connected),
-    deviceType: device.device_type ?? 'Unknown',
-    model: device.info?.model ?? 'Unknown',
-    serialNumber: device.info?.serial_number ?? 'N/A',
-    softwareVersion: device.info?.software_version ?? 'N/A',
-  });
-
   const updateDeviceStatus = useCallback(async () => {
     try {
-      const response = await fetch(`${API_BASE}/status`);
-      const result: DevicesResponse = await response.json();
-      if (result.success) {
-        const parsedDevices = (result.devices ?? []).map(normaliseDevice);
-        setDevices(parsedDevices);
-      }
+      const status = await getDeviceStatus();
+      setDevices(status);
     } catch (error) {
       console.error('Failed to get device status:', error);
       setDevices([]);
@@ -141,11 +115,8 @@ export const useDevices = () => {
 
   const fetchAvailablePorts = useCallback(async () => {
     try {
-      const response = await fetch(`${API_BASE}/ports`);
-      const result: PortsResponse = await response.json();
-      if (result.success) {
-        setAvailablePorts(result.ports ?? []);
-      }
+      const ports = await getAvailablePorts();
+      setAvailablePorts(ports);
     } catch (error) {
       console.error('Failed to load serial ports:', error);
     }
@@ -154,21 +125,10 @@ export const useDevices = () => {
   const connectDevice = useCallback(async (deviceType: string, port?: string) => {
     setIsLoading(true);
     try {
-      const response = await fetch(`${API_BASE}/connect`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ device_type: deviceType, port }),
-      });
-        const result: ConnectResponse = await response.json();
-      if (!result.success || !result.device) {
-        throw new Error(result.error ?? 'Failed to connect to device');
-      }
-        const device = normaliseDevice(result.device);
-        return {
-          deviceId: device.id,
-          device,
+      const device = await connectToDevice(deviceType, port);
+      return {
+        deviceId: device.id,
+        device,
       };
     } finally {
       await updateDeviceStatus();
@@ -178,61 +138,24 @@ export const useDevices = () => {
 
   const disconnectDevice = useCallback(async (deviceId: string) => {
     try {
-      const response = await fetch(`${API_BASE}/disconnect/${deviceId}`, {
-        method: 'POST',
-      });
-      const result: DisconnectResponse = await response.json();
-      if (!result.success) {
-        throw new Error(result.error ?? 'Failed to disconnect device');
-      }
+      const message = await disconnectFromDevice(deviceId);
       setMeasurementHistory((prev) => {
         const { [deviceId]: _removed, ...rest } = prev;
         return rest;
       });
-      return result.message ?? 'Device disconnected';
+      return message;
     } finally {
       await updateDeviceStatus();
     }
   }, [updateDeviceStatus]);
 
   const getMeasurement = useCallback(async (deviceId: string) => {
-    const response = await fetch(`${API_BASE}/measurement/${deviceId}`);
-    const result: MeasurementApiResponse = await response.json();
-    if (!result.success) {
-      throw new Error(result.error ?? 'Device measurement request failed');
-    }
-
-    const measurement: MeasurementResponse = result.data;
+    const measurement = await getDeviceMeasurement(deviceId);
     const deviceMeta = devices.find((device) => device.id === deviceId);
-    const timestamp = measurement.timestamp ? Date.parse(measurement.timestamp) : Date.now();
-    const unit = normaliseUnit(measurement.unit);
 
     setMeasurementHistory((prev) => {
-      const history = prev[deviceId] ?? [];
-      const nextSample: MeasurementSample = {
-        deviceId,
-        deviceType: deviceMeta?.deviceType ?? 'Unknown',
-        deviceLabel: deviceMeta ? `${deviceMeta.model} (${deviceMeta.deviceType})` : deviceId,
-        value: Number(measurement.value ?? 0),
-        unit,
-        timestamp: Number.isNaN(timestamp) ? Date.now() : timestamp,
-        ...(measurement.state ? { state: measurement.state } : {}),
-        ...(measurement.attribute ? { attribute: measurement.attribute } : {}),
-      };
-
-  const lastSample = history.length > 0 ? history[history.length - 1] : undefined;
-  const unitChanged = lastSample ? lastSample.unit !== nextSample.unit : false;
-      const seedHistory = unitChanged ? [] : history;
-
-      const updatedHistory = [...seedHistory, nextSample];
-      const trimmed = updatedHistory.length > HISTORY_LIMIT
-        ? updatedHistory.slice(updatedHistory.length - HISTORY_LIMIT)
-        : updatedHistory;
-
-      return {
-        ...prev,
-        [deviceId]: trimmed,
-      };
+      const sample = createMeasurementSample(deviceId, measurement, deviceMeta);
+      return appendSampleToHistory(prev, sample);
     });
 
     return measurement;
@@ -303,12 +226,12 @@ export const useDevices = () => {
 
   // Update status on mount and when window regains focus
   useEffect(() => {
-    updateDeviceStatus();
-    fetchAvailablePorts();
+    void updateDeviceStatus();
+    void fetchAvailablePorts();
 
     const handleFocus = () => {
-      updateDeviceStatus();
-      fetchAvailablePorts();
+      void updateDeviceStatus();
+      void fetchAvailablePorts();
     };
 
     window.addEventListener('focus', handleFocus);

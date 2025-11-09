@@ -38,6 +38,7 @@ export const MIN_Y_RATIO_SPAN = 0.01;
 
 export const DEFAULT_AXIS_COLOR = '#95a5a6';
 export const DEFAULT_UNIT = 'Unknown';
+export const META_PREFIX = 'meta:';
 
 export const AXIS_TICK_TARGET = 11;
 

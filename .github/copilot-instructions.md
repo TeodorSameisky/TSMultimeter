@@ -1,24 +1,23 @@
 # TSMultimeter Copilot Guide
-- **Architecture**: backend/src/main.rs exposes a Warp server on 127.0.0.1:8080; frontend/src/App.tsx is a Vite/Electron shell that calls the REST API via fetch.
-- **State model**: backend/src/communication.rs owns AppState (Arc<Mutex<...>>) keyed by generated device_#### IDs; route filters clone this state so handlers share device handles.
-- **REST contract**: POST /connect, POST /disconnect/{device_id}, GET /measurement/{device_id}, GET /status, GET /ports; responses mirror the shapes normalised in frontend/src/hooks/useDevice.ts.
-- **Device additions**: extend the match in connect_device, add variants to DeviceType and create_device, and ensure the frontend DEVICE_TYPE_OPTIONS plus mock handling support the new string.
-- **Serial protocol**: backend/src/device/fluke.rs builds serialport::new(...).timeout(...), sends CR-terminated commands, and expects ACK-prefixed lines—reuse helpers there to avoid breaking framing.
-- **Mock transport**: backend/src/device/mock.rs streams varied readings ideal for UI tests; prefer this when no hardware is attached to keep polling logic exercised.
-- **Measurement schema**: enums for unit/state/attribute live in backend/src/device/mod.rs; whenever you add variants update UNIT_DISPLAY_MAP in useDevice.ts, formatters in frontend/src/utils/formatNumber.ts, and any math-channel validation.
-- **Error flow**: return Err(String) from communication functions so main.rs can wrap replies in { success: false, error }; create new typed errors in backend/src/error.rs if Rust callers need richer context.
-- **Tracing**: backend/src/lib.rs::init wires tracing_subscriber; use tracing::info! and tracing::warn! instead of println! for new paths so logs respect env filters.
-- **Polling pipeline**: useDevices polls connected IDs every 500 ms, caps history at 5 000 samples, and resets history when a unit string changes—reuse getMeasurement rather than manual polling.
-- **History consumers**: frontend/src/components/MeasurementHistory builds charts via derived hooks; add new data by threading it through useMeasurementDerivedState instead of mutating chart state directly.
-- **Math channels**: useMathChannelHistory.ts recomputes derived samples when device histories change; extend the identifier whitelist in frontend/src/utils/mathExpressions.ts before exposing new math functions.
-- **Channel config**: frontend/src/state/channelSettingsReducer.ts and useChannelSettingsManager.ts are the single source for alias/color/unit edits—dispatch reducer actions rather than mutating channel arrays.
-- **Developer mode**: useDeveloperMode.ts toggles storage-backed developer mode that reveals the Mock device option and extra panels; mimic this flag when adding experimental UI.
-- **ID allocation**: backend assigns device IDs sequentially; frontend IDs (for example math channels) come from frontend/src/utils/createId.ts to avoid collisions across sessions.
-- **Styling**: components co-locate styled-components definitions alongside logic (see frontend/src/components/AppLayout); prefer extending existing styled primitives instead of global CSS.
-- **Testing without hardware**: use the mock device plus frontend/src/hooks/useMathChannelHistory.ts to keep calculations populated; for backend-only tests rely on direct calls into MockDevice.
-- **Frontend build**: run npm install, npm run dev for hot-reload, or npm run electron:dev to pair the Electron shell with Vite; lint via npm run lint and npm run type-check.
-- **Backend build**: use cargo run for development or cargo build --release when packaging; frontend/scripts/build-backend.js wraps this in npm run package:standalone before electron-builder runs.
-- **Packaging flow**: npm run package:standalone builds the Rust backend, compiles the React app, then runs electron-builder; output lands in frontend/release/ with NSIS artifacts.
-- **Port discovery**: get_available_ports wraps serialport::available_ports; mock this in tests or when running on CI without serial hardware.
-- **API examples**: README.md shows curl snippets for exercising /status, /connect, /measurement, /disconnect; replicate their JSON to avoid breaking the frontend fetch logic.
-- **Documentation sources**: keep protocol specifics under protocols/ and high-level app behaviour in README.md; sync both when you add capabilities so future contributors trust the docs.
+- **System layout**: `backend/src/main.rs` runs a Warp HTTP server on `127.0.0.1:8080`; `frontend/src/App.tsx` is a Vite-powered React UI that can also be bundled via Electron (`frontend/electron-main.ts`).
+- **Shared state**: `backend/src/communication.rs` owns `AppState` (`Arc<Mutex<...>>`) keyed by generated `device_####` strings; clone the filters when wiring new routes so every handler shares the same registry.
+- **REST contract**: Core routes are `POST /connect`, `POST /disconnect/{device_id}`, `GET /measurement/{device_id}`, `GET /status`, `GET /ports`. Payloads must match the shapes normalised in `frontend/src/hooks/useDevice.ts`.
+- **Device onboarding**: Extend `connect_device` and `DeviceType` in `backend/src/communication/mod.rs` + `backend/src/device/mod.rs`, plumb creation logic into `create_device`, and surface the new string through `DEVICE_TYPE_OPTIONS` and mock handling in `frontend/src/hooks/useDevice.ts`.
+- **Serial drivers**: `backend/src/device/fluke.rs` wraps `serialport::new` with `.timeout(...)`, emits CR-terminated commands, and expects `ACK`-prefixed frames; reuse the existing helper functions to preserve framing.
+- **Mock pipeline**: `backend/src/device/mock.rs` produces varied readings that exercise polling without hardware; prefer this driver for tests and developer mode flows.
+- **Measurement schema**: Unit/state/attribute enums live in `backend/src/device/mod.rs`. Any new variant requires updates to `UNIT_DISPLAY_MAP` in `frontend/src/hooks/useDevice.ts`, number formatting in `frontend/src/utils/formatNumber.ts`, and math-channel validation paths.
+- **Error handling**: Backend handlers return `Result<T, String>` so `backend/src/main.rs` can respond with `{ success: false, error }`. Introduce richer errors in `backend/src/error.rs` if the caller needs more context.
+- **Tracing**: `backend/src/lib.rs::init` wires `tracing_subscriber`; prefer `tracing::info!` / `tracing::warn!` over `println!` so log filtering keeps working.
+- **Frontend polling**: `frontend/src/hooks/useDevice.ts` polls each connected device every 500 ms, caps history at 5000 samples, and resets history when the unit string changes; reuse `getMeasurement` rather than manual fetch loops.
+- **Measurement history**: `frontend/src/components/MeasurementHistory` is driven by `useMeasurementHistoryController.ts`, which groups cursor, zoom, axis, and pointer controls from dedicated hooks. Extend functionality by threading data through `useMeasurementDerivedState` and keeping control objects memoised.
+- **Math channels**: `frontend/src/hooks/useMathChannelHistory.ts` recomputes derived series on history updates. Whitelist new identifiers in `frontend/src/utils/mathExpressions.ts` before exposing them.
+- **Channel settings**: `frontend/src/state/channelSettingsReducer.ts` and `useChannelSettingsManager.ts` own alias/color/unit mutations. Dispatch reducer actions; never mutate arrays directly.
+- **Developer mode**: `frontend/src/hooks/useDeveloperMode.ts` gates the Mock device and experimental UI. Respect this flag when adding hidden features.
+- **ID generation**: Backend assigns sequential device IDs; the frontend creates stable IDs via `frontend/src/utils/createId.ts` for math channels and overlays.
+- **Styling pattern**: Components co-locate styled-components alongside logic (see `frontend/src/components/AppLayout`). Prefer extending the exported styled primitives instead of adding global CSS.
+- **Backend workflows**: `cd backend; cargo run` during development, `cargo build --release` for packaging, and `frontend/scripts/build-backend.js` (triggered by `npm run package:standalone`) to bundle Rust for Electron.
+- **Frontend workflows**: `cd frontend; npm install` once, then `npm run dev` for browser hot reload, `npm run electron:dev` or `npm run electron` for desktop shell. Use `npm run lint`, `npm run type-check`, and `npm run test -- --run` (Vitest with jsdom/globals) before committing.
+- **Packaging**: `npm run package:standalone` builds the backend, compiles the React app, then runs electron-builder; artifacts land under `frontend/release/`.
+- **Port discovery**: `backend/src/communication/mod.rs::get_available_ports` wraps `serialport::available_ports`. When running on CI or without devices, stub or mock this call.
+- **API smoke tests**: The root `README.md` includes curl snippets for `/status`, `/connect`, `/measurement`, `/disconnect`. Keep responses backward compatible with those examples.
+- **Documentation sources**: Place protocol specifics under `protocols/` and surface high-level behaviour in `README.md`; update both when adding devices so the frontend/backends stay in sync.

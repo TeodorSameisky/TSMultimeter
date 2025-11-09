@@ -377,35 +377,30 @@ class ExpressionParser {
 
   private parseExpression(): ExpressionNode {
     let node = this.parseTerm();
-    while (true) {
-      const token = this.peek();
-      if (!token || token.type !== 'operator' || (token.value !== '+' && token.value !== '-')) {
-        break;
-      }
+    let token = this.peek();
+    while (token && token.type === 'operator' && (token.value === '+' || token.value === '-')) {
       this.consume();
       const right = this.parseTerm();
       node = { type: 'binary', operator: token.value, left: node, right };
+      token = this.peek();
     }
     return node;
   }
 
   private parseTerm(): ExpressionNode {
     let node = this.parseFactor();
-    while (true) {
-      const token = this.peek();
-      if (!token || token.type !== 'operator' || (token.value !== '*' && token.value !== '/')) {
-        break;
-      }
+    let token = this.peek();
+    while (token && token.type === 'operator' && (token.value === '*' || token.value === '/')) {
       this.consume();
       const right = this.parseFactor();
       node = { type: 'binary', operator: token.value, left: node, right };
+      token = this.peek();
     }
     return node;
   }
 
   private parseFactor(): ExpressionNode {
-    let node = this.parsePower();
-    return node;
+    return this.parsePower();
   }
 
   private parsePower(): ExpressionNode {
@@ -455,14 +450,12 @@ class ExpressionParser {
       const args: ExpressionNode[] = [];
       const nextToken = this.peek();
       if (!nextToken || nextToken.type !== 'paren' || nextToken.value !== ')') {
-        while (true) {
+        args.push(this.parseExpression());
+        let delimiter = this.peek();
+        while (delimiter && delimiter.type === 'comma') {
+          this.consume();
           args.push(this.parseExpression());
-          const delimiter = this.peek();
-          if (delimiter && delimiter.type === 'comma') {
-            this.consume();
-            continue;
-          }
-          break;
+          delimiter = this.peek();
         }
       }
       const closing = this.consume();

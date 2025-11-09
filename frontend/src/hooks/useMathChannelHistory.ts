@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { DeviceChannelConfig, MathChannelConfig } from '../types/channel.ts';
-import type { MeasurementSample } from './useDevice.ts';
+import type { MeasurementSample } from '../types/deviceData.ts';
 import { evaluateMathExpression } from '../utils/mathExpressions.ts';
 
 export type MathChannelHistory = Record<string, MeasurementSample[]>;

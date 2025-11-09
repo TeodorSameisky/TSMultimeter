@@ -1,5 +1,5 @@
 import { useMemo, useCallback, useState, type Dispatch, type SetStateAction } from 'react';
-import type { MeasurementSample } from '../../hooks/useDevice';
+import type { MeasurementSample } from '../../types/deviceData.ts';
 import {
   buildAxisDomains,
   buildAxisPrecision,
@@ -317,3 +317,13 @@ export const useAxisScaleManager = (axisDomainsByUnit: Map<string, { min: number
     openAxisScale,
   } satisfies AxisScaleManager;
 };
+
+export { useCursorState } from './useCursorState.ts';
+export { useCursorInteractions } from './useCursorInteractions.ts';
+export { useHistoryPlayback } from './useHistoryPlayback.ts';
+export { useSkipNextClick } from './useSkipNextClick.ts';
+export { useMeasurementPointerHandlers } from './useMeasurementPointerHandlers.ts';
+export { useCursorDistance } from './useCursorDistance.ts';
+export type { CursorDistance } from './useCursorDistance.ts';
+export { useTooltipFormatters } from './useTooltipFormatters.ts';
+export { useZoomController } from './useZoomController.ts';

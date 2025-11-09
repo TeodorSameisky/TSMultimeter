@@ -4,7 +4,7 @@ A PC software application for connecting to multimeters and gathering measuremen
 
 **Version:** 0.1.0
 
-![TSMultimeter UI](screenshot.png)
+![TSMultimeter UI](screenshots/ui.png)
 
 ## Architecture
 

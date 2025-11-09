@@ -53,6 +53,7 @@
   "build": {
     "appId": "com.tsmultimeter.app",
     "productName": "TSMultimeter",
+    "icon": "icon.png",
     "directories": {
       "output": "release"
     },

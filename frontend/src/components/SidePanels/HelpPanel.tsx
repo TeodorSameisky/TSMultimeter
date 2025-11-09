@@ -28,26 +28,15 @@ export const HelpPanel: React.FC<HelpPanelProps> = ({ open }) => (
 
     <PanelBody>
       <PanelSection>
-        <PanelSectionTitle>Quick start</PanelSectionTitle>
-        <PanelList>
-          <PanelListItem>Connect a device from the channel tray, or enable developer features to access the mock multimeter for UI exploration.</PanelListItem>
-          <PanelListItem>Open channel settings to rename traces, tweak colours, and build math expressions.</PanelListItem>
-          <PanelListItem>Use the scope toolbar to export snapshots or reset the rolling history.</PanelListItem>
-        </PanelList>
-      </PanelSection>
-      <PanelSection>
         <PanelSectionTitle>Troubleshooting</PanelSectionTitle>
         <PanelList>
-          <PanelListItem>Verify the backend service (Cargo) is running before launching the Electron shell.</PanelListItem>
-          <PanelListItem>Refresh available ports if hardware is attached after startup.</PanelListItem>
-          <PanelListItem>Check the console output for serial permission errors on first-time setups.</PanelListItem>
+          <PanelListItem>For connecting to Fluke 287 and 289, the FTDI Driver is needed. It can be found at <a href="https://ftdichip.com/drivers/" target="_blank" rel="noopener noreferrer" style={{ color: '#ffffff' }}>https://ftdichip.com/drivers/</a>.</PanelListItem>
         </PanelList>
       </PanelSection>
       <PanelSection>
-        <PanelSectionTitle>Need more?</PanelSectionTitle>
+        <PanelSectionTitle>Support</PanelSectionTitle>
         <PanelText>
-          Review the repository README or the protocol notes under <code>protocols/</code> for device specifics. File issues or
-          questions via GitHub to collaborate with the team.
+          For feature requests or if you found bugs, please open an issue in <a href="https://github.com/TeodorSameisky/TSMultimeter" target="_blank" rel="noopener noreferrer" style={{ color: '#ffffff' }}>the repository</a>.
         </PanelText>
       </PanelSection>
     </PanelBody>

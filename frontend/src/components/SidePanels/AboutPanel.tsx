@@ -28,25 +28,50 @@ export const AboutPanel: React.FC<AboutPanelProps> = ({ open }) => (
 
     <PanelBody>
       <PanelSection>
-        <PanelSectionTitle>TSMultimeter</PanelSectionTitle>
+        <PanelSectionTitle>Version</PanelSectionTitle>
         <PanelText>
-          Desktop companion for TSMultimeter hardware that pairs a Rust backend with a React/Electron UI to stream live
-          measurements, log sessions, and craft derived math channels without touching command-line tooling.
+          0.1.0
         </PanelText>
       </PanelSection>
       <PanelSection>
-        <PanelSectionTitle>Core ideas</PanelSectionTitle>
+        <PanelSectionTitle>Supported Devices</PanelSectionTitle>
         <PanelList>
-          <PanelListItem>Real-time device polling with automatic channel discovery and colour assignment.</PanelListItem>
-          <PanelListItem>Mock multimeter pipeline for UI development without hardware.</PanelListItem>
-          <PanelListItem>Math traces that reuse the same history pipeline as physical channels.</PanelListItem>
+          <PanelListItem>Fluke 289</PanelListItem>
+          <PanelListItem>Fluke 287</PanelListItem>
         </PanelList>
       </PanelSection>
       <PanelSection>
-        <PanelSectionTitle>Stack</PanelSectionTitle>
+        <PanelSectionTitle>License</PanelSectionTitle>
         <PanelText>
-          Backend: Rust (Warp, serialport) · Frontend: TypeScript, React, styled-components, Recharts · Desktop shell: Electron.
+          This project is licensed under the MIT License.
         </PanelText>
+      </PanelSection>
+      <PanelSection>
+        <PanelSectionTitle>Dependencies</PanelSectionTitle>
+        <PanelList>
+          <PanelListItem><strong>Frontend:</strong></PanelListItem>
+          <PanelListItem>@tauri-apps/api - MIT</PanelListItem>
+          <PanelListItem>html-to-image - MIT</PanelListItem>
+          <PanelListItem>katex - MIT</PanelListItem>
+          <PanelListItem>react - MIT</PanelListItem>
+          <PanelListItem>react-dom - MIT</PanelListItem>
+          <PanelListItem>recharts - MIT</PanelListItem>
+          <PanelListItem>styled-components - MIT</PanelListItem>
+          <PanelListItem><strong>Backend:</strong></PanelListItem>
+          <PanelListItem>serialport - MIT</PanelListItem>
+          <PanelListItem>tokio - MIT</PanelListItem>
+          <PanelListItem>tauri - MIT</PanelListItem>
+          <PanelListItem>anyhow - MIT</PanelListItem>
+          <PanelListItem>thiserror - MIT</PanelListItem>
+          <PanelListItem>tracing - MIT</PanelListItem>
+          <PanelListItem>tracing-subscriber - MIT</PanelListItem>
+          <PanelListItem>serde - MIT</PanelListItem>
+          <PanelListItem>serde_json - MIT</PanelListItem>
+          <PanelListItem>rand - MIT</PanelListItem>
+          <PanelListItem>async-trait - MIT</PanelListItem>
+          <PanelListItem>chrono - MIT</PanelListItem>
+          <PanelListItem>warp - MIT</PanelListItem>
+        </PanelList>
       </PanelSection>
     </PanelBody>
   </SidePanel>
